@@ -1,11 +1,17 @@
-Yara - Yet another read aligner
-===============================
-
+(DREAM-)Yara - An exact read mapper for very large databases with short update time 
+=================================================================================
 
 Overview
 --------
-
 Yara is an *exact* tool for aligning DNA sequencing reads to reference genomes.
+DREAM-Yara is an extension of the Yara to support distributed read mapping.  
+It works by spliting a given reference database in to smaller manageble partitions 
+and this allows faster indexing and super fast updating time.
+DREAM-Yara can quickly exclude reads for parts of the databases where they cannot match. 
+This allows us to keep the databases in several indices which can be easily rebuilt 
+if parts are updated while maintaining a fast search time. 
+Both Yara and DREAM-Yara are fully sensitive read mappers.
+
 
 Main features
 ~~~~~~~~~~~~~
@@ -49,11 +55,11 @@ Software requirements
 Download
 ~~~~~~~~
 
-Yara sources are hosted on GitHub within the SeqAn library. Download the sources by executing:
+(DREAM-)Yara sources downloaded by executing:
 
 ::
 
-  $ git clone https://github.com/seqan/seqan.git
+  $ git clone https://github.com/seqan/dream_yara.git
 
 Configuration
 ~~~~~~~~~~~~~
@@ -62,9 +68,9 @@ Create a build project by executing CMake as follows:
 
 ::
 
-  $ mkdir yara-build
-  $ cd yara-build
-  $ cmake ../seqan -DSEQAN_BUILD_SYSTEM=APP:yara -DCMAKE_CXX_COMPILER=/usr/bin/g++-4.9
+  $ mkdir build
+  $ cd build
+  $ cmake ../dream_yara
 
 Build
 ~~~~~
@@ -82,7 +88,7 @@ Copy the binaries to a folder in your *PATH*, e.g.:
 
 ::
 
-  # cp bin/yara* /usr/local/bin
+  # cp bin/* /usr/local/bin
 
 
 Usage
@@ -92,6 +98,10 @@ Yara consists of two executables:
 
 * **yara_indexer** builds the index of a reference genome.
 * **yara_mapper** maps DNA reads on the indexed reference genome.
+* **dream_yara_indexer** builds distributed indices of multiple reference genome .
+* **dream_yara_build_filter** builds an interlieaved Bloom filter for distributed indices.
+* **dream_yara_update_filter** updates an interlieaved Bloom filter for distributed indices.
+* **dream_yara_mapper** maps DNA reads on the distributed indices.
 
 This document explains only basic usage. To get complete usage descriptions, invoke each tool with -h or --help.
 
@@ -134,6 +144,48 @@ Map paired-end reads by providing two DNA read files:
 ::
 
   $ yara_mapper REF.index READS_1.fastq.gz READS_2.fastq.gz -o READS.bam
+
+
+
+Distributed Indexer
+~~~~~~~~~~~~~~~~~~~
+
+Here we rquire a refence database splited in to many bins. This can be achieved (eg.) by using TaxSBP from https://github.com/pirovc/taxsbp
+
+::
+    
+  $ git clone https://github.com/pirovc/taxsbp
+
+
+
+Create 64 fasta files under GENOMES_DIR/ directory with names 0-63.fasta
+
+::
+
+  $ dream_yara_build_filter --number-of-bins 64 --threads 8 --kmer-size 18 --filter-type bloom --bloom-size 16 --num-hash 3 --output-file IBF.filter GENOMES_DIR/
+  $ dream_yara_indexer --threads 8 --output-prefix INDICES_DIR/ GENOMES_DIR/*.fasta
+
+Distributed Mapper
+~~~~~~~~~~~~~~~~~~
+
+Single-end reads
+^^^^^^^^^^^^^^^^
+
+Map single-end DNA reads on the indexed reference genome by executing:
+
+::
+
+  $ dream_yara_mapper -t 8 -ft bloom -e 3 -fi IBF.filter -o READS.bam INDICES_DIR/ READS.fastq.gz 
+
+Paired-end reads
+^^^^^^^^^^^^^^^^
+
+Map paired-end reads by providing two DNA read files:
+
+::
+
+  $ dream_yara_mapper -t 8 -ft bloom -e 3 -fi IBF.filter -o READS.bam INDICES_DIR/ READS_1.fastq.gz READS2.fastq.gz 
+
 
 Output format
 ^^^^^^^^^^^^^

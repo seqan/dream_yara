@@ -259,9 +259,8 @@ inline bool _extendRight(Extender<THaystack, TNeedle, TSpec> & extender,
 // TODO(esiragusa): _setScoreThreshold(me, maxErrors)
 // TODO(esiragusa): extend(me, haystackInfix, needleInfix(needle=host), matchErrors, delegate)
 
-template <typename THaystack,typename TNeedle, typename TSpec,
-          typename THaystackPos, typename TNeedlePos, typename TDistance, 
-          typename TErrors, typename TMaxErrors, typename TDelegate>
+template <typename THaystack, typename TNeedle, typename TSpec,
+          typename THaystackPos, typename TNeedlePos, typename TDistance, typename TErrors, typename TMaxErrors, typename TDelegate>
 inline void
 extend(Extender<THaystack, TNeedle, TSpec> & extender,
        TNeedle const & needle,
@@ -290,8 +289,7 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
 
 #ifdef YARA_PRINT_ALIGN
     std::cerr << std::endl << "======================================================================" << std::endl;
-    std::cerr << "SEED: " << Pair<THaystackPos>(haystackBegin, haystackEnd) << " -- " << 
-                Pair<TNeedlePos>(needleBegin, needleEnd) << std::endl;
+    std::cerr << "SEED: " << Pair<THaystackPos>(haystackBegin, haystackEnd) << " -- " << Pair<TNeedlePos>(needleBegin, needleEnd) << std::endl;
 
     {
         Align<Dna5String, AnchorGaps<>> align;
@@ -317,8 +315,7 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
     {
         THaystackInfix haystackSeed = infix(extender.haystack, haystackBegin, haystackEnd);
         TNeedleInfix needleSeed = infix(needle, needleBegin, needleEnd);
-        if (!_checkSeed(haystackSeed, needleSeed, matchErrors, maxErrors)) 
-            return;
+        if (!_checkSeed(haystackSeed, needleSeed, matchErrors, maxErrors)) return;
 
         haystackLeftEnd = haystackBegin;
         needleLeftEnd = needleBegin;
@@ -340,8 +337,7 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
 
 #ifdef YARA_PRINT_ALIGN
         std::cerr << "----------------------------------------------------------------------" << std::endl;
-        std::cerr << "LEFT: " << Pair<THaystackPos>(haystackLeftBegin, haystackEnd) << " -- " 
-                  << Pair<TNeedlePos>(0, needleEnd) << std::endl;
+        std::cerr << "LEFT: " << Pair<THaystackPos>(haystackLeftBegin, haystackEnd) << " -- " << Pair<TNeedlePos>(0, needleEnd) << std::endl;
 
         typename TExtender::THaystackInfixRev haystackLeftRev(haystackLeft);
         typename TExtender::TNeedleInfixRev needleLeftRev(needleLeft);
@@ -351,8 +347,7 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
         assignSource(row(align, 1), needleLeftRev);
 #endif // YARA_PRINT_ALIGN
 
-        if (!_extendLeft(extender, haystackLeft, needleLeft, matchBegin, matchErrors, maxErrors)) 
-            return;
+        if (!_extendLeft(extender, haystackLeft, needleLeft, matchBegin, matchErrors, maxErrors)) return;
 
 #ifdef YARA_PRINT_ALIGN
         globalAlignment(row(align, 0), row(align, 1), Score<short, EditDistance>(),
@@ -380,8 +375,7 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
 
 #ifdef YARA_PRINT_ALIGN
         std::cerr << "----------------------------------------------------------------------" << std::endl;
-        std::cerr << "RIGHT: " << Pair<THaystackPos>(haystackEnd, haystackRightEnd) << " -- " 
-                  << Pair<TNeedlePos>(needleEnd, needleLength) << std::endl;
+        std::cerr << "RIGHT: " << Pair<THaystackPos>(haystackEnd, haystackRightEnd) << " -- " << Pair<TNeedlePos>(needleEnd, needleLength) << std::endl;
 
         Align<Dna5String, AnchorGaps<>> align;
         resize(rows(align), 2);
@@ -389,8 +383,7 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
         assignSource(row(align, 1), needleRight);
 #endif // YARA_PRINT_ALIGN
 
-        if (!_extendRight(extender, haystackRight, needleRight, matchEnd, matchErrors, maxErrors)) 
-            return;
+        if (!_extendRight(extender, haystackRight, needleRight, matchEnd, matchErrors, maxErrors)) return;
 
 #ifdef YARA_PRINT_ALIGN
         globalAlignment(row(align, 0), row(align, 1), Score<short, EditDistance>(),

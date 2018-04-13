@@ -1196,6 +1196,7 @@ inline void clearAlignments(Mapper<TSpec, TConfig> & me)
 {
     clear(me.cigars);
     clear(me.cigarSet);
+    shrinkToFit(me.cigars);
     shrinkToFit(me.cigarSet);
 }
 
