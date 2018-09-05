@@ -22,6 +22,11 @@ set (SEQAN_APP_VERSION "${SEQAN_APP_VERSION_MAJOR}.${SEQAN_APP_VERSION_MINOR}.${
 # Dependencies (continued)
 # ----------------------------------------------------------------------------
 
+if (COMPILER_MSVC)
+    message (STATUS "Yara is currently not build on Microsoft Visual because it requires OpenMP 3.0.")
+    return ()
+endif ()
+
 # Search SeqAn and select dependencies.
 find_package(OpenMP QUIET)
 find_package(ZLIB   QUIET)
@@ -316,7 +321,7 @@ target_link_libraries (dream_yara_mapper ${SEQAN_LIBRARIES})
 # Installation
 # ----------------------------------------------------------------------------
 # Install yara in ${PREFIX}/bin directory
-install (TARGETS yara_indexer dream_yara_indexer dream_yara_build_filter dream_yara_update_filter yara_mapper dream_yara_mapper 
+install (TARGETS yara_indexer dream_yara_indexer dream_yara_build_filter dream_yara_update_filter yara_mapper dream_yara_mapper
          DESTINATION bin)
 
 # Install non-binary files for the package to "." for app builds and
