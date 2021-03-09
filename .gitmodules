@@ -1,10 +1,7 @@
 [submodule "include/seqan"]
 	path = include/seqan
 	url = https://github.com/seqan/seqan
-[submodule "seqan"]
 	branch = develop
 [submodule "include/sdsl-lite"]
 	path = include/sdsl-lite
 	url = https://github.com/xxsds/sdsl-lite
-[submodule "sdsl-lite"]
-    branch = master
