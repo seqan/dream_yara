@@ -1,7 +1,7 @@
 // ==========================================================================
 //                                 d_bloom_filter.h
 // ==========================================================================
-// Copyright (c) 2017-2022, Temesgen H. Dadi, FU Berlin
+// Copyright (c) 2017-2022, Enrico Seiler, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -12,14 +12,14 @@
 //     * Redistributions in binary form must reproduce the above copyright
 //       notice, this list of conditions and the following disclaimer in the
 //       documentation and/or other materials provided with the distribution.
-//     * Neither the name of Temesgen H. Dadi or the FU Berlin nor the names of
+//     * Neither the name of Enrico Seiler or the FU Berlin nor the names of
 //       its contributors may be used to endorse or promote products derived
 //       from this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL TEMESGEN H. DADI OR THE FU BERLIN BE LIABLE
+// ARE DISCLAIMED. IN NO EVENT SHALL ENRICO SEILER OR THE FU BERLIN BE LIABLE
 // FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 // DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 // SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
@@ -29,304 +29,177 @@
 // DAMAGE.
 //
 // ==========================================================================
-// Author: Temesgen H. Dadi <temesgen.dadi@fu-berlin.de>
+// Author: Enrico Seiler <enrico.seiler@fu-berlin.de>
 // ==========================================================================
 
-#include <sdsl/bit_vectors.hpp>
-#include <valarray>
-#include <algorithm>
+#include <seqan3/core/algorithm/detail/execution_handler_parallel.hpp>
+#include <seqan3/range/views/chunk.hpp>
+#include <seqan3/search/dream_index/interleaved_bloom_filter.hpp>
+
+#include "bit_chunk.hpp"
 
 namespace seqan
 {
-    template<typename TString = Dna5String>
-    class SeqAnBloomFilter
+
+template <typename string_t = Dna5String>
+class SeqAnBloomFilter
+{
+private:
+    using shape_t = Shape<Dna, SimpleShape>;
+
+    uint8_t kmer_size{};
+    seqan3::interleaved_bloom_filter<seqan3::data_layout::uncompressed> ibf{};
+
+public:
+    SeqAnBloomFilter() = default;
+    SeqAnBloomFilter(SeqAnBloomFilter const &) = default;
+    SeqAnBloomFilter & operator=(SeqAnBloomFilter const &) = default;
+    SeqAnBloomFilter(SeqAnBloomFilter &&) = default;
+    SeqAnBloomFilter & operator=(SeqAnBloomFilter &&) = default;
+    ~SeqAnBloomFilter() = default;
+
+    SeqAnBloomFilter(uint32_t bin_count, uint8_t hash_function_count, uint8_t kmer_size, uint64_t full_size):
+        kmer_size(kmer_size),
+        ibf(seqan3::bin_count{bin_count},
+            seqan3::bin_size{full_size / (((bin_count + 63) >> 6) << 6)},
+            seqan3::hash_function_count{hash_function_count})
+    {}
+
+    SeqAnBloomFilter(const char * file_name)
     {
-    public:
+        load(file_name);
+    }
 
-        typedef Shape<Dna, SimpleShape> TShape;
+    void addKmers(string_t const & text, uint32_t const bin_index)
+    {
+        if (length(text) < kmer_size)
+            return;
 
-        SeqAnBloomFilter(uint32_t n_bins, uint8_t n_hash_func, uint8_t kmer_size, uint64_t vec_size):
-                        _noOfBins(n_bins),
-                        _noOfHashFunc(n_hash_func),
-                        _kmerSize(kmer_size),
-                        _noOfBits(vec_size),
-                        _filterVector(sdsl::bit_vector(vec_size, 0))
+        shape_t kmer_shape;
+        resize(kmer_shape, kmer_size);
 
+        auto it = begin(text);
+        hashInit(kmer_shape, it);
+
+        for (uint64_t i = 0; i < length(text) - length(kmer_shape) + 1; ++i, ++it)
         {
-            _init();
+            ibf.emplace(hashNext(kmer_shape, it), seqan3::bin_index{bin_index});
         }
+    }
 
-        SeqAnBloomFilter(const char *fileName, uint32_t n_bins, uint8_t n_hash_func, uint8_t kmer_size, uint64_t vec_size):
-                        _noOfBins(n_bins),
-                        _noOfHashFunc(n_hash_func),
-                        _kmerSize(kmer_size),
-                        _noOfBits(vec_size)
+    void addFastaFile(CharString const & fasta_file, uint32_t const bin_index)
+    {
+        CharString id;
+        IupacString seq;
+
+        SeqFileIn fin;
+        if (!open(fin, toCString(fasta_file)))
         {
-            _init();
-            if (!sdsl::load_from_file(_filterVector, fileName))
-            {
-                std::cerr << "File \"" << fileName << "\" could not be read." << std::endl;
-                exit(1);
-            }
-            if (vec_size != _filterVector.bit_size())
-            {
-                std::cerr << "Size mismatch: \n\t Loaded file \t" << _filterVector.bit_size()
-                << " bits\n\t expected\t" << vec_size << std::endl;
-                exit(1);
-            }
+            CharString msg = "Unable to open contigs File: ";
+            append (msg, fasta_file);
+            throw toCString(msg);
         }
-
-        SeqAnBloomFilter(const char *fileName)
+        while (!atEnd(fin))
         {
-            if (!sdsl::load_from_file(_filterVector, fileName))
-            {
-                std::cerr << "File \"" << fileName << "\" could not be read." << std::endl;
-                exit(1);
-            }
-            _noOfBits = _filterVector.bit_size();
-            _getMetadata();
-            _init();
+            readRecord(id, seq, fin);
+            addKmers(seq, bin_index);
         }
+        close(fin);
+    }
 
-        void addKmers(TString const & text, uint32_t const & binNo)
+    void clearBins(std::vector<uint32_t> const & bin_range, uint32_t const threads)
+    {
+        size_t const chunk_size = std::clamp<size_t>(std::bit_ceil(ibf.bin_size() / threads),
+                                                     8u,
+                                                     64u);
+
+        auto chunked_view = bin_range | extra::views::bit_chunk(chunk_size);
+
+        auto worker = [&] (auto && chunked_range, auto &&)
         {
-            _addKmers(text, binNo);
-        }
+            ibf.clear(chunked_range | std::views::transform([] (uint32_t const i) { return seqan3::bin_index{i}; }));
+        };
 
-        // ----------------------------------------------------------------------------
-        // Function clearBins()
-        // ----------------------------------------------------------------------------
-        void clearBins(std::vector<uint32_t> & bins2clear, uint32_t & threadsCount)
+        seqan3::detail::execution_handler_parallel executioner{threads};
+        executioner.bulk_execute(std::move(worker), std::move(chunked_view), [](){});
+    }
+
+    void whichBins(std::vector<bool> & selected, std::vector<uint64_t> & values, string_t const & text, uint16_t const threshold) const
+    {
+        size_t const possible = length(text) - kmer_size + 1;
+        values.clear();
+
+        shape_t kmer_shape;
+        resize(kmer_shape, kmer_size);
+        hashInit(kmer_shape, begin(text));
+
+        auto it = begin(text);
+        for (size_t i = 0; i < possible; ++i, ++it)
+            values.push_back(hashNext(kmer_shape, it));
+
+        auto agent = ibf.counting_agent();
+        auto & counts = agent.bulk_count(values);
+        assert(ibf.bin_count() == counts.size());
+        assert(ibf.bin_count() == selected.size());
+        assert(selected.size() == counts.size());
+
+        for (size_t bin_index = 0; bin_index < ibf.bin_count(); ++bin_index)
         {
-            std::vector<std::future<void>> tasks;
-
-            uint64_t batchSize = _noOfHashPos/threadsCount;
-            if(batchSize * threadsCount < _noOfHashPos) ++batchSize;
-
-            for (uint32_t taskNo = 0; taskNo < threadsCount; ++taskNo)
-            {
-                tasks.emplace_back(std::async([=] {
-                    for (uint64_t hashBlock=taskNo*batchSize; hashBlock < _noOfHashPos && hashBlock < (taskNo +1) * batchSize; ++hashBlock)
-                    {
-                        uint64_t vecPos = hashBlock * _blockBitSize;
-                        for(uint32_t binNo : bins2clear)
-                        {
-                            _filterVector[vecPos + binNo] = false;
-                        }
-                    }
-                }));
-            }
-            for (auto &&task : tasks)
-            {
-                task.get();
-            }
+            if (counts[bin_index] >= threshold)
+                selected[bin_index] = true;
         }
-        // ----------------------------------------------------------------------------
-        // Function addFastaFile()
-        // ----------------------------------------------------------------------------
-        void addFastaFile(CharString const & fastaFile, uint32_t const & binNo)
-        {
-            CharString id;
-            IupacString seq;
+    }
 
-            SeqFileIn seqFileIn;
-            if (!open(seqFileIn, toCString(fastaFile)))
-            {
-                CharString msg = "Unable to open contigs File: ";
-                append (msg, fastaFile);
-                throw toCString(msg);
-            }
-            while(!atEnd(seqFileIn))
-            {
-                readRecord(id, seq, seqFileIn);
-                if(length(seq) < _kmerSize)
-                    continue;
-                addKmers(seq, binNo);
-            }
-            close(seqFileIn);
-        }
+    void whichBins(std::vector<bool> & selected, string_t const & text, uint16_t const threshold) const
+    {
+        size_t const possible = length(text) - kmer_size + 1;
+        std::vector<uint64_t> values;
+        values.reserve(possible);
+        whichBins(selected, values, text, threshold);
+    }
 
-        //save case sdsl
-        bool save(const char *fileName)
-        {
-            _setMetadata();
-            return sdsl::store_to_file(_filterVector, fileName);
-        }
+    std::vector<bool> whichBins(string_t const & text, uint16_t const threshold) const
+    {
+        std::vector<bool> selected(ibf.bin_count(), false);
+        whichBins(selected, text, threshold);
+        return selected;
+    }
 
-        double size_mb()
-        {
-            return sdsl::size_in_mega_bytes(_filterVector);
-        }
-        
-        inline void whichBins(std::vector<bool> & selected, TString const & text, uint16_t const & threshold) const
-        {
-            uint16_t possible = length(text) - _kmerSize + 1;
+    size_t getNumberOfBins() const noexcept
+    {
+        return ibf.bin_count();
+    }
 
-            std::vector<uint16_t> counts(_noOfBins, 0);
-            std::vector<uint64_t> kmerHashes(possible, 0);
+    uint8_t getKmerSize() const noexcept
+    {
+        return kmer_size;
+    }
 
-            TShape kmerShape;
-            resize(kmerShape, _kmerSize);
-            hashInit(kmerShape, begin(text));
-            auto it = begin(text);
-            for (uint32_t i = 0; i < possible; ++i)
-            {
-                kmerHashes[i] = hashNext(kmerShape, it);
-                ++it;
-            }
+    double size_mb() const
+    {
+        return sdsl::size_in_mega_bytes(ibf.raw_data());
+    }
 
-            for (uint64_t kmerHash : kmerHashes)
-            {
-                std::vector<uint64_t> vecIndices =_preCalcValues;
-                for(uint8_t i = 0; i < _noOfHashFunc ; i++)
-                {
-                    vecIndices[i] *= kmerHash;
-                    getHashValue(vecIndices[i]);
-                }
-                uint32_t binNo = 0;
-                for (uint16_t batchNo = 0; batchNo < _binIntWidth; ++batchNo)
-                {
-                    binNo = batchNo * integer_width;
-                    uint64_t tmp = _filterVector.get_int(vecIndices[0], integer_width);
-                    for(uint8_t i = 1; i < _noOfHashFunc;  i++)
-                    {
-                        tmp &= _filterVector.get_int(vecIndices[i], integer_width);
-                    }
+    void save(const char * file_name)
+    {
+        std::ofstream os{file_name, std::ios::binary};
+        cereal::BinaryOutputArchive oarchive{os};
+        CEREAL_SERIALIZE_FUNCTION_NAME(oarchive);
+    }
 
-                    if (tmp ^ (1ULL<<(integer_width-1)))
-                    {
-                        while (tmp > 0)
-                        {
-                            uint64_t step = sdsl::bits::lo(tmp);
-                            binNo += step;
-                            ++step;
-                            tmp >>= step;
-                            ++counts[binNo];
-                            ++binNo;
-                        }
-                    }
-                    else
-                    {
-                        ++counts[binNo + integer_width - 1];
-                    }
-                    for(uint8_t i = 0; i < _noOfHashFunc ; i++)
-                    {
-                        vecIndices[i] += integer_width;
-                    }
-                }
-            }
+    void load(const char * file_name)
+    {
+        std::ifstream os{file_name, std::ios::binary};
+        cereal::BinaryInputArchive iarchive{os};
+        CEREAL_SERIALIZE_FUNCTION_NAME(iarchive);
+    }
 
-            for(uint32_t binNo=0; binNo < _noOfBins; ++binNo)
-            {
-                if(counts[binNo] >= threshold)
-                    selected[binNo] = true;
-            }
-        }
+    template <typename archive_t>
+    void CEREAL_SERIALIZE_FUNCTION_NAME(archive_t & archive)
+    {
+        archive(ibf);
+        archive(kmer_size);
+    }
+};
 
-        std::vector<bool> whichBins(TString const & text, uint16_t const & threshold) const
-        {
-            std::vector<bool> selected(_noOfBins, false);
-            whichBins(selected, text, threshold);
-            return selected;
-        }
-
-        uint32_t getNumberOfBins()
-        {
-            return _noOfBins;
-        }
-
-        uint8_t getKmerSize()
-        {
-            return _kmerSize;
-        }
-
-    private:
-
-        void _init()
-        {
-            _binIntWidth = std::ceil((float)_noOfBins / integer_width);
-            _blockBitSize = _binIntWidth * integer_width;
-            _noOfHashPos = (_noOfBits - filterMetadataSize) / _blockBitSize;
-
-            _preCalcValues.resize(_noOfHashFunc);
-            for(uint8_t i = 0; i < _noOfHashFunc ; i++)
-                _preCalcValues[i] = i ^  (_kmerSize * _seedValue);
-        }
-        void _getMetadata()
-        {
-            //-------------------------------------------------------------------
-            //|              bf              | n_bins | n_hash_func | kmer_size |
-            //-------------------------------------------------------------------
-            uint64_t metadataStart = _noOfBits - filterMetadataSize;
-
-            _noOfBins = _filterVector.get_int(metadataStart);
-            _noOfHashFunc = _filterVector.get_int(metadataStart+64);
-            _kmerSize = _filterVector.get_int(metadataStart+128);
-        }
-
-        void _setMetadata()
-        {
-            // -------------------------------------------------------------------
-            // |              bf              | n_bins | n_hash_func | kmer_size |
-            // -------------------------------------------------------------------
-            uint64_t metadataStart = _noOfBits - filterMetadataSize;
-
-            _filterVector.set_int(metadataStart, _noOfBins);
-            _filterVector.set_int(metadataStart + 64, _noOfHashFunc);
-            _filterVector.set_int(metadataStart + 128, _kmerSize);
-        }
-
-        template<typename TInt>
-        bool _isBitSet(TInt num, uint8_t bit) const
-        {
-            return 1 == ( (num >> bit) & 1);
-        }
-
-
-        inline void getHashValue(uint64_t & vecIndex) const
-        {
-            vecIndex ^= vecIndex >> _shiftValue;
-            vecIndex %= _noOfHashPos;
-            vecIndex *= _blockBitSize;
-        }
-
-        void _insertKmer(uint64_t & kmerHash, uint32_t const & batchOffset)
-        {
-            for(uint8_t i = 0; i < _noOfHashFunc ; i++)
-            {
-                uint64_t vecIndex = _preCalcValues[i] * kmerHash;
-                getHashValue(vecIndex);
-                vecIndex += batchOffset;
-                _filterVector[vecIndex] = 1;
-            }
-        }
-
-        void _addKmers(TString const & text, uint32_t const & binNo)
-        {
-            TShape kmerShape;
-            resize(kmerShape, _kmerSize);
-            hashInit(kmerShape, begin(text));
-
-            for (uint32_t i = 0; i < length(text) - length(kmerShape) + 1; ++i)
-            {
-                uint64_t kmerHash = hashNext(kmerShape, begin(text) + i);
-                _insertKmer(kmerHash, binNo);
-            }
-        }
-
-        uint32_t                 _noOfBins;
-        uint8_t                  _noOfHashFunc;
-        uint8_t                  _kmerSize;
-        uint16_t                 _binIntWidth;
-        uint32_t                 _blockBitSize;
-
-        //sizes in diferent units
-        uint64_t                _noOfBits;
-        uint64_t                _noOfHashPos;
-        sdsl::bit_vector        _filterVector;
-
-        std::vector<uint64_t>   _preCalcValues;
-        uint64_t const          _shiftValue = 27;
-        uint64_t const          _seedValue = 0x90b45d39fb6da1fa;
-    };
-}
+} // namespace seqan
