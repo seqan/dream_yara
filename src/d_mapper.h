@@ -75,6 +75,8 @@ public:
 
     std::vector<std::string> filterTypeList = {"bloom", "kmer_direct", "none"};
 
+    SeqAnBloomFilter<> filter;
+
     uint32_t getContigOffsets()
     {
         return contigOffsets[currentBinNo];
@@ -305,8 +307,8 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, Mapper<TSpec, TMainConfig
 // ----------------------------------------------------------------------------
 // Function clasifyLoadedReads()
 // ----------------------------------------------------------------------------
-template <typename TSpec, typename TMainConfig, typename TFilter>
-inline void clasifyLoadedReads(Mapper<TSpec, TMainConfig>  & mainMapper, TFilter const & filter, DisOptions & disOptions)
+template <typename TSpec, typename TMainConfig>
+inline void clasifyLoadedReads(Mapper<TSpec, TMainConfig>  & mainMapper, DisOptions & disOptions)
 {
     start(mainMapper.timer);
 
@@ -344,17 +346,18 @@ inline void clasifyLoadedReads(Mapper<TSpec, TMainConfig>  & mainMapper, TFilter
 
     for (uint32_t taskNo = 0; taskNo < numThr; ++taskNo)
     {
-        tasks.emplace_back(std::async([=, &mainMapper, &disOptions, &filter] {
+        tasks.emplace_back(std::async([=, &mainMapper, &disOptions] {
+            std::vector<uint64_t> values;
+            std::vector<bool> selectedBins(disOptions.numberOfBins, false);
             for (uint32_t readID = taskNo*batchSize; readID < numReads && readID < (taskNo +1) * batchSize; ++readID)
             {
-                std::vector<bool> selectedBins(disOptions.numberOfBins, false);
-                filter.whichBins(selectedBins, mainMapper.reads.seqs[readID], threshold);
-                filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + numReads], threshold);
+                disOptions.filter.whichBins(selectedBins, values, mainMapper.reads.seqs[readID], threshold);
+                disOptions.filter.whichBins(selectedBins, values, mainMapper.reads.seqs[readID + numReads], threshold);
 
                 if (IsSameType<typename TMainConfig::TSequencing, PairedEnd>::VALUE)
                 {
-                    filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + 2*numReads], threshold);
-                    filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + 3*numReads], threshold);
+                    disOptions.filter.whichBins(selectedBins, values, mainMapper.reads.seqs[readID + 2*numReads], threshold);
+                    disOptions.filter.whichBins(selectedBins, values, mainMapper.reads.seqs[readID + 3*numReads], threshold);
                 }
 
                 for (uint32_t binNo = 0; binNo < disOptions.numberOfBins; ++binNo)
@@ -366,6 +369,7 @@ inline void clasifyLoadedReads(Mapper<TSpec, TMainConfig>  & mainMapper, TFilter
                         mtx.unlock();
                     }
                 }
+                std::fill(selectedBins.begin(), selectedBins.end(), false);
             }
         }));
     }
@@ -809,8 +813,8 @@ inline void openOutputFile(Mapper<TSpec, TConfig> & mainMapper, DisOptions & dis
 // ----------------------------------------------------------------------------
 // Function prepairMainMapper()
 // ----------------------------------------------------------------------------
-template <typename TSpec, typename TMainConfig, typename TFilter>
-inline void prepairMainMapper(Mapper<TSpec, TMainConfig> & mainMapper, TFilter const & filter, DisOptions & disOptions)
+template <typename TSpec, typename TMainConfig>
+inline void prepairMainMapper(Mapper<TSpec, TMainConfig> & mainMapper, DisOptions & disOptions)
 {
     initReadsContext(mainMapper, mainMapper.reads.seqs);
     setHost(mainMapper.cigars, mainMapper.cigarString);
@@ -818,7 +822,7 @@ inline void prepairMainMapper(Mapper<TSpec, TMainConfig> & mainMapper, TFilter c
     if (IsSameType<typename TMainConfig::TSequencing, PairedEnd>::VALUE)
         resize(mainMapper.primaryMatchesProbs, getReadsCount(mainMapper.reads.seqs), 0.0, Exact());
     if(disOptions.filterType != NONE)
-        clasifyLoadedReads(mainMapper, filter, disOptions);
+        clasifyLoadedReads(mainMapper, disOptions);
 }
 
 // ----------------------------------------------------------------------------
@@ -856,8 +860,8 @@ std::vector<uint32_t> sortedBins(DisOptions const & disOptions)
 // ----------------------------------------------------------------------------
 // Function runDisMapper()
 // ----------------------------------------------------------------------------
-template <typename TSpec, typename TMainConfig, typename TFilter>
-inline void runDisMapper(Mapper<TSpec, TMainConfig> & mainMapper, TFilter const & filter, DisOptions & disOptions)
+template <typename TSpec, typename TMainConfig>
+inline void runDisMapper(Mapper<TSpec, TMainConfig> & mainMapper, DisOptions & disOptions)
 {
     configureThreads(mainMapper);
 
@@ -871,7 +875,7 @@ inline void runDisMapper(Mapper<TSpec, TMainConfig> & mainMapper, TFilter const 
         loadReads(mainMapper);
         if (empty(mainMapper.reads.seqs)) break;
 
-        prepairMainMapper(mainMapper, filter, disOptions);
+        prepairMainMapper(mainMapper, disOptions);
 
         for (auto i: sortedBins(disOptions))
         {
@@ -906,44 +910,9 @@ inline void spawnDisMapper(DisOptions & disOptions,
     Timer<double> timer;
 
     start(timer);
-    start(disMapper.timer);
-
-    if (disOptions.filterType == BLOOM)
-    {
-        SeqAnBloomFilter<> filter  (toCString(disOptions.filterFile));
-
-        disOptions.kmerSize = filter.getKmerSize();
-
-//        if(filter.getNumberOfBins() != disOptions.numberOfBins)
-//            std::cerr << "[WARNING] Provided number of bins (" << disOptions.numberOfBins << ")differs from that of the bloom filter (" << filter.getNumberOfBins() << ")";
-
-        stop(disMapper.timer);
-        disOptions.loadFilter += getValue(disMapper.timer);
-        runDisMapper(disMapper, filter, disOptions);
-    }
-    else if (disOptions.filterType == KMER_DIRECT)
-    {
-        SeqAnKDXFilter<> filter (toCString(disOptions.filterFile));
-
-        disOptions.kmerSize = filter.getKmerSize();
-
-//        if(filter.getNumberOfBins() != disOptions.numberOfBins)
-//            std::cerr << "[WARNING] Provided number of bins (" << disOptions.numberOfBins << ")differs from that of the bloom filter (" << filter.getNumberOfBins() << ")\n";
-
-        stop(disMapper.timer);
-        disOptions.loadFilter += getValue(disMapper.timer);
-        runDisMapper(disMapper, filter, disOptions);
-    }
-    else
-    {
-        // dummy filter in case of nofilter option
-        SeqAnBloomFilter<> filter(64, 3, 20, 1);
-
-        stop(disMapper.timer);
-        disOptions.loadFilter += getValue(disMapper.timer);
-        runDisMapper(disMapper, filter, disOptions);
-    }
+    runDisMapper(disMapper, disOptions);
     stop(timer);
+
     if (disMapper.options.verbose > 0)
     {
         double total = getValue(timer) / 100.0;

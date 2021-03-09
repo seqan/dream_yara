@@ -85,7 +85,7 @@ struct Options
     Options() :
     kmerSize(20),
     numberOfBins(64),
-    bloomFilterSize(8589934592 + filterMetadataSize), // 1GB
+    bloomFilterSize(8589934592), // 1GB
     numberOfHashes(4),
     threadsCount(1),
     verbose(false),
@@ -188,7 +188,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
         append(options.filterFile, "bloom.filter");
     }
 
-    getOptionValue(options.filterType, parser, "filter-type", options.filterTypeList);
+    // getOptionValue(options.filterType, parser, "filter-type", options.filterTypeList);
 
     if (isSet(parser, "number-of-bins")) getOptionValue(options.numberOfBins, parser, "number-of-bins");
     if (isSet(parser, "kmer-size")) getOptionValue(options.kmerSize, parser, "kmer-size");
@@ -200,7 +200,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     {
         if ((bloomSize & (bloomSize - 1)) == 0)
         {
-            options.bloomFilterSize = bloomSize * 8589934592 + filterMetadataSize; // 8589934592 = 1GB
+            options.bloomFilterSize = bloomSize * 8589934592; // 8589934592 = 1GB
         }
         else
         {
@@ -293,25 +293,12 @@ int main(int argc, char const ** argv)
 
     try
     {
-        if (options.filterType == BLOOM)
-        {
-            SeqAnBloomFilter<> filter  (options.numberOfBins,
-                                        options.numberOfHashes,
-                                        options.kmerSize,
-                                        options.bloomFilterSize);
+        SeqAnBloomFilter<> filter  (options.numberOfBins,
+                                    options.numberOfHashes,
+                                    options.kmerSize,
+                                    options.bloomFilterSize);
 
-            build_filter(options, filter);
-        }
-        else if (options.filterType == KMER_DIRECT)
-        {
-            uint64_t vec_size = (1u << (2 * options.kmerSize));
-            vec_size *= options.numberOfBins;
-            vec_size += filterMetadataSize;
-            SeqAnKDXFilter<> filter (options.numberOfBins, options.kmerSize, vec_size);
-
-            build_filter(options, filter);
-        }
-
+        build_filter(options, filter);
     }
     catch (Exception const & e)
     {
