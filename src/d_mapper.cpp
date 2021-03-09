@@ -167,9 +167,9 @@ void setupArgumentParser(ArgumentParser & parser, DisOptions const & disOptions)
                                      ArgParseOption::STRING));
     hideOption(parser, "sa");
 
-    // Turn off for DREAM-Yara temporarly till matches and cigar managment is handeled properly
-    // addOption(parser, ArgParseOption("as", "align-secondary", "Compute and output co- and suboptimal \
-    //                                  match alignments. Ignored if '-sa omit' is set."));
+    /* Turn off for DREAM-Yara temporarly till matches and cigar managment is handeled properly
+       addOption(parser, ArgParseOption("as", "align-secondary", "Compute and output co- and suboptimal \
+                                        match alignments. Ignored if '-sa omit' is set.")); */
 
     addOption(parser, ArgParseOption("ra", "rabema-alignments", "Output alignments compatible with the \
                                      Read Alignment BEnchMArk (RABEMA)."));
