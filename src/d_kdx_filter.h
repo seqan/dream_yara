@@ -160,9 +160,9 @@ namespace seqan
                 uint32_t binNo = 0;
                 for (uint32_t batchNo = 0; batchNo < _binIntWidth; ++batchNo)
                 {
-                    binNo = batchNo * INT_WIDTH;
-                    uint64_t tmp = _filterVector.get_int(kmerHash, INT_WIDTH);
-                    if (tmp ^ (1ULL<<(INT_WIDTH-1)))
+                    binNo = batchNo * integer_width;
+                    uint64_t tmp = _filterVector.get_int(kmerHash, integer_width);
+                    if (tmp ^ (1ULL<<(integer_width-1)))
                     {
                         while (tmp > 0)
                         {
@@ -176,9 +176,9 @@ namespace seqan
                     }
                     else
                     {
-                        ++counts[binNo + INT_WIDTH - 1];
+                        ++counts[binNo + integer_width - 1];
                     }
-                    kmerHash += INT_WIDTH;
+                    kmerHash += integer_width;
                 }
             }
 
@@ -210,8 +210,8 @@ namespace seqan
 
         void _init()
         {
-            _binIntWidth = std::ceil((float)_noOfBins / INT_WIDTH);
-            _blockBitSize = _binIntWidth * INT_WIDTH;
+            _binIntWidth = std::ceil((float)_noOfBins / integer_width);
+            _blockBitSize = _binIntWidth * integer_width;
             _noOfHashPos = (_noOfBits - filterMetadataSize) / _binIntWidth;
         }
         void _getMetadata()
