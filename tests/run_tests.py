@@ -113,12 +113,11 @@ def main(source_base, binary_base):
     # Run DREAM-yara IBF Filter Tests compute
     # ============================================================
 
-    ibf_args = ['-b', '64' ,'-t', '4' ,'-k', '19' ,'-nh', ' 2' ,'-bs', '1']
+    ibf_args = ['-t', '4' ,'-k', '19', '-w', '19', '-nh', ' 2' ,'-bs', '1']
     for organism in ['64-viral']:
         conf = app_tests.TestConf(
             program=path_to_ibf_filter,
-            args=[ph.outFile('%s-binned-genomes/' % organism),
-                  '-o', ph.outFile('%s-binned-genomes.filter' % organism)] + ibf_args)
+            args=['-o', ph.outFile('%s-binned-genomes.filter' % organism)] + ibf_args + InfileNames)
         conf_list.append(conf)
 
 
@@ -127,9 +126,9 @@ def main(source_base, binary_base):
     # ============================================================
 
     dis_mapper_args = [
-            ['-e', '3', '--threads', '1'],
-            ['-e', '3', '--threads', '1', '-sm', 'record', '-s', '10'],
-            ['-e', '3', '--threads', '1', '-sm', 'tag', '-s', '10']
+            ['-e', '0.03', '--threads', '1'],
+            ['-e', '0.03', '--threads', '1', '-sm', 'record', '-s', '10'],
+            ['-e', '0.03', '--threads', '1', '-sm', 'tag', '-s', '10']
             ]
     dis_mapper_suffix = ['t1', 'rec.t1', 'tag.t1']
 
@@ -155,18 +154,21 @@ def main(source_base, binary_base):
     # ============================================================
 
     failures = 0
-    for conf in conf_list:
-        res = app_tests.runTest(conf)
-        # Output to the user.
-        print (' '.join([conf.program] + conf.args))
-        if res:
-             print ('OK')
-        else:
-            failures += 1
-            print ('FAILED')
-
-    # Cleanup.
-    ph.deleteTempDir()
+    try:
+        for conf in conf_list:
+            # Output to the user.
+            print ('Executing: {}'.format(' '.join([conf.program] + conf.args)))
+            res = app_tests.runTest(conf)
+            if res:
+                print ('OK\n==============================\n')
+            else:
+                failures += 1
+                print ('FAILED\n==============================\n')
+    except Exception as e:
+        raise e # This exception is saved, then finally is executed, and then the exception is raised.
+    finally:
+        # Cleanup.
+        ph.deleteTempDir()
 
     print ('==============================')
     print ('     total tests: %d' % len(conf_list))
