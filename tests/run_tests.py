@@ -113,7 +113,7 @@ def main(source_base, binary_base):
     # Run DREAM-yara IBF Filter Tests compute
     # ============================================================
 
-    ibf_args = ['-t', '4' ,'-k', '19' ,'-nh', ' 2' ,'-bs', '1']
+    ibf_args = ['-t', '4' ,'-k', '19', '-w', '19', '-nh', ' 2' ,'-bs', '1']
     for organism in ['64-viral']:
         conf = app_tests.TestConf(
             program=path_to_ibf_filter,
