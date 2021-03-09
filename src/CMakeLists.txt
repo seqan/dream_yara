@@ -273,10 +273,10 @@ add_executable(dream_yara_mapper  d_mapper.cpp
                                   index_fm.h)
 
 # Add dependencies found by find_package (SeqAn).
-target_link_libraries (dream_yara_indexer ${SEQAN_LIBRARIES})
-target_link_libraries (dream_yara_build_filter ${SEQAN_LIBRARIES})
-target_link_libraries (dream_yara_update_filter ${SEQAN_LIBRARIES})
-target_link_libraries (dream_yara_mapper ${SEQAN_LIBRARIES})
+target_link_libraries (dream_yara_indexer ${SEQAN_LIBRARIES} seqan3::seqan3)
+target_link_libraries (dream_yara_build_filter ${SEQAN_LIBRARIES} seqan3::seqan3)
+target_link_libraries (dream_yara_update_filter ${SEQAN_LIBRARIES} seqan3::seqan3)
+target_link_libraries (dream_yara_mapper ${SEQAN_LIBRARIES} seqan3::seqan3)
 
 
 # ----------------------------------------------------------------------------

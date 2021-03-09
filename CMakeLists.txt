@@ -46,7 +46,8 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/sdsl-lite/include/sdsl/bits.hpp"
     message (STATUS "Found a local SDSL library provided with the DREAM-YARA source code.")
 endif ()
 
-
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/include/seqan3/build_system")
+find_package (seqan3 3.0 REQUIRED)
 
 # ----------------------------------------------------------------------------
 # Add Yara targets
