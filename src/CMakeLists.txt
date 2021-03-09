@@ -191,7 +191,6 @@ endif (MSVC)
 set (SEQAN_DEFINITIONS ${SEQAN_DEFINITIONS} -DSEQAN_GLOBAL_EXCEPTION_HANDLER=1)
 
 # Add include directories.
-include_directories (${SDSL_INCLUDE_DIRS})
 include_directories (${SEQAN_INCLUDE_DIRS})
 
 # Add definitions set by find_package (SeqAn).
