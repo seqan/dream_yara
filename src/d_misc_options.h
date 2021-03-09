@@ -38,7 +38,7 @@
 std::mutex mtx;
 
 static const uint32_t filterMetadataSize = 256;
-static const uint8_t INT_WIDTH = 0x40;
+static const uint8_t integer_width = 0x40;
 
 
 enum FilterType
