@@ -186,6 +186,8 @@ set (SEQAN_DEFINITIONS ${SEQAN_DEFINITIONS} -DSEQAN_GLOBAL_EXCEPTION_HANDLER=1)
 # Add include directories.
 include_directories (${SEQAN_INCLUDE_DIRS})
 
+include_directories (${CMAKE_SOURCE_DIR}/include/raptor/include)
+
 # Add definitions set by find_package (SeqAn).
 add_definitions (${SEQAN_DEFINITIONS})
 

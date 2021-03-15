@@ -545,6 +545,7 @@ int main(int argc, char const ** argv)
     SeqAnBloomFilter<> filter(toCString(disOptions.filterFile));
     stop(timer);
     disOptions.kmerSize = filter.getKmerSize();
+    disOptions.windowSize = filter.getWindowSize();
     disOptions.numberOfBins = filter.getNumberOfBins();
     disOptions.filter = std::move(filter);
     disOptions.loadFilter += getValue(timer);

@@ -72,6 +72,7 @@ struct Options
     CharString      filterFile;
 
     uint32_t        kmerSize;
+    uint32_t        windowSize;
     uint32_t        numberOfBins;
     uint64_t        bloomFilterSize;
     uint32_t        numberOfHashes;
@@ -83,7 +84,8 @@ struct Options
     std::vector<std::string> filterTypeList;
 
     Options() :
-    kmerSize(20),
+    kmerSize(19),
+    windowSize(23),
     numberOfBins(64),
     bloomFilterSize(8589934592), // 1GB
     numberOfHashes(4),
@@ -148,6 +150,11 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setMinValue(parser, "kmer-size", "14");
     setMaxValue(parser, "kmer-size", "32");
 
+    addOption(parser, ArgParseOption("w", "window-size", "The size of the window for bloom_filter",
+                                     ArgParseOption::INTEGER));
+    // setMinValue(parser, "kmer-size", "14");
+    // setMaxValue(parser, "kmer-size", "32");
+
     addOption(parser, ArgParseOption("nh", "num-hash", "Specify the number of hash functions to use for the bloom filter.", ArgParseOption::INTEGER));
     setMinValue(parser, "num-hash", "2");
     setMaxValue(parser, "num-hash", "5");
@@ -192,6 +199,10 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 
     if (isSet(parser, "number-of-bins")) getOptionValue(options.numberOfBins, parser, "number-of-bins");
     if (isSet(parser, "kmer-size")) getOptionValue(options.kmerSize, parser, "kmer-size");
+    if (isSet(parser, "window-size"))
+        getOptionValue(options.windowSize, parser, "window-size");
+    else
+        options.windowSize = options.kmerSize;
     if (isSet(parser, "threads")) getOptionValue(options.threadsCount, parser, "threads");
     if (isSet(parser, "num-hash")) getOptionValue(options.numberOfHashes, parser, "num-hash");
 
@@ -296,6 +307,7 @@ int main(int argc, char const ** argv)
         SeqAnBloomFilter<> filter  (options.numberOfBins,
                                     options.numberOfHashes,
                                     options.kmerSize,
+                                    options.windowSize,
                                     options.bloomFilterSize);
 
         build_filter(options, filter);

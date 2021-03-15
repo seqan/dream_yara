@@ -61,7 +61,8 @@ public:
 
     bool                    skipSamHeader = false;
 
-    uint32_t                kmerSize = 20;
+    uint32_t                kmerSize = 19;
+    uint32_t                windowSize = 23;
     uint32_t                numberOfBins = 64;
 
     uint32_t                currentBinNo = 0;
@@ -347,17 +348,16 @@ inline void clasifyLoadedReads(Mapper<TSpec, TMainConfig>  & mainMapper, DisOpti
     for (uint32_t taskNo = 0; taskNo < numThr; ++taskNo)
     {
         tasks.emplace_back(std::async([=, &mainMapper, &disOptions] {
-            std::vector<uint64_t> values;
             std::vector<bool> selectedBins(disOptions.numberOfBins, false);
             for (uint32_t readID = taskNo*batchSize; readID < numReads && readID < (taskNo +1) * batchSize; ++readID)
             {
-                disOptions.filter.whichBins(selectedBins, values, mainMapper.reads.seqs[readID], threshold);
-                disOptions.filter.whichBins(selectedBins, values, mainMapper.reads.seqs[readID + numReads], threshold);
+                disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID], threshold);
+                disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + numReads], threshold);
 
                 if (IsSameType<typename TMainConfig::TSequencing, PairedEnd>::VALUE)
                 {
-                    disOptions.filter.whichBins(selectedBins, values, mainMapper.reads.seqs[readID + 2*numReads], threshold);
-                    disOptions.filter.whichBins(selectedBins, values, mainMapper.reads.seqs[readID + 3*numReads], threshold);
+                    disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + 2*numReads], threshold);
+                    disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + 3*numReads], threshold);
                 }
 
                 for (uint32_t binNo = 0; binNo < disOptions.numberOfBins; ++binNo)
