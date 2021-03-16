@@ -14,3 +14,8 @@ struct dna4_traits : seqan3::sequence_file_input_default_traits_dna
 {
     using sequence_alphabet = seqan3::dna4;
 };
+
+//!\brief Strong type for passing the window size.
+struct window { uint64_t v; };
+//!\brief Strong type for passing the kmer size.
+struct kmer { uint8_t v; };

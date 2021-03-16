@@ -38,6 +38,8 @@
 
 using namespace seqan;
 
+#include "thresholder.h"
+
 // ==========================================================================
 // Classes
 // ==========================================================================
@@ -78,22 +80,29 @@ public:
 
     SeqAnBloomFilter<> filter;
 
-    uint32_t getContigOffsets()
+    Thresholder thresholder;
+
+    uint32_t getContigOffsets() const
     {
         return contigOffsets[currentBinNo];
     }
 
-    uint16_t getThreshold(uint16_t readLen)
+    void construct_thresholder(uint16_t const avgReadLen)
     {
-        uint16_t maxError = errorRate * readLen;
-
-        // same as readLen - kmerSize + 1 - (maxError * kmerSize);
-        if (kmerSize * (1 + maxError) > readLen)
-            return 0;
-
-        return readLen - kmerSize * (1 + maxError) + 1;
+        uint16_t const maxError = errorRate * avgReadLen;
+        thresholder = Thresholder(avgReadLen, windowSize, kmerSize, maxError, toCString(filterFile));
     }
 
+    // uint16_t getThreshold(uint16_t readLen) const
+    // {
+    //     uint16_t maxError = errorRate * readLen;
+
+    //     // same as readLen - kmerSize + 1 - (maxError * kmerSize);
+    //     if (kmerSize * (1 + maxError) > readLen)
+    //         return 0;
+
+    //     return readLen - kmerSize * (1 + maxError) + 1;
+    // }
 };
 
 // ==========================================================================
@@ -315,12 +324,13 @@ inline void clasifyLoadedReads(Mapper<TSpec, TMainConfig>  & mainMapper, DisOpti
 
     uint32_t numReads = getReadsCount( mainMapper.reads.seqs);
     uint16_t avgReadLen = lengthSum(mainMapper.reads.seqs) / (numReads * 2);
-    uint16_t threshold = disOptions.getThreshold(avgReadLen);
+    // uint16_t threshold = disOptions.getThreshold(avgReadLen);
+    disOptions.construct_thresholder(avgReadLen);
 
     disOptions.origReadIdMap.clear();
     disOptions.origReadIdMap.resize(disOptions.numberOfBins);
 
-    if (threshold == 0)
+    if (disOptions.thresholder.check() == 0)
     {
         std::cerr <<"[WARNING!] 0 k-mer is required to filter a read!\n";
         std::cerr <<"All reads will pass filteration and be mapped everywhere.\n ";
@@ -348,16 +358,18 @@ inline void clasifyLoadedReads(Mapper<TSpec, TMainConfig>  & mainMapper, DisOpti
     for (uint32_t taskNo = 0; taskNo < numThr; ++taskNo)
     {
         tasks.emplace_back(std::async([=, &mainMapper, &disOptions] {
+            std::vector<uint64_t> values;
             std::vector<bool> selectedBins(disOptions.numberOfBins, false);
+            auto agent = disOptions.filter.get_agent();
             for (uint32_t readID = taskNo*batchSize; readID < numReads && readID < (taskNo +1) * batchSize; ++readID)
             {
-                disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID], threshold);
-                disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + numReads], threshold);
+                disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID], disOptions.thresholder, agent, values);
+                disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + numReads], disOptions.thresholder, agent, values);
 
                 if (IsSameType<typename TMainConfig::TSequencing, PairedEnd>::VALUE)
                 {
-                    disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + 2*numReads], threshold);
-                    disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + 3*numReads], threshold);
+                    disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + 2*numReads], disOptions.thresholder, agent, values);
+                    disOptions.filter.whichBins(selectedBins, mainMapper.reads.seqs[readID + 3*numReads], disOptions.thresholder, agent, values);
                 }
 
                 for (uint32_t binNo = 0; binNo < disOptions.numberOfBins; ++binNo)
