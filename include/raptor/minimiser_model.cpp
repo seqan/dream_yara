@@ -23,7 +23,7 @@
 #error "Cereal not found, make sure you cloned the project recursively."
 #endif
 
-#include <shared.hpp>
+#include <raptor/shared.hpp>
 
 struct minimizer
 {
@@ -287,7 +287,7 @@ public:
 
 };
 
-std::vector<size_t> pascal_row(size_t n)
+std::vector<size_t> pascal_row(size_t const n)
 {
     std::vector<size_t> result(n + 1);
     result[0] = 1;
@@ -296,6 +296,15 @@ std::vector<size_t> pascal_row(size_t n)
         result[i] = result[i - 1] * (n + 1 - i) / i;
 
     return result;
+}
+
+void pascal_row(size_t const n, std::vector<size_t> & result)
+{
+    result.resize(n + 1);
+    result[0] = 1;
+
+    for (size_t i = 1; i <= n; ++i)
+        result[i] = result[i - 1] * (n + 1 - i) / i;
 }
 
 std::tuple<double, std::vector<double>>
@@ -571,11 +580,54 @@ std::vector<double> destroyed_indirectly_by_error(size_t const pattern_size, siz
     return result;
 }
 
+struct binomial_distribution
+{
+    double success_rate;
+    size_t number_of_trials;
+    std::vector<size_t> coefficients;
+
+    void initialise(size_t const number_of_trials_, double const success_rate_)
+    {
+        number_of_trials = number_of_trials_;
+        success_rate = success_rate_;
+        pascal_row(number_of_trials, coefficients);
+    }
+
+    double operator() (size_t const number_of_successes) const // no sanity checks
+    {
+        return coefficients[number_of_successes] * // n over k
+               std::pow(success_rate, number_of_successes) * // p^k
+               std::pow(1 - success_rate, number_of_trials - number_of_successes); // (1-p)^(n-k)
+    }
+};
+
+void apply_correction_term(std::vector<size_t> & thresholds,
+                           size_t const minimal_number_of_minimizers,
+                           size_t const maximal_number_of_minimizers,
+                           double const fpr,
+                           double const correction_threshold)
+{
+    binomial_distribution binom_dist;
+
+    for (size_t number_of_minimizers = minimal_number_of_minimizers; number_of_minimizers <= maximal_number_of_minimizers; ++number_of_minimizers)
+    {
+        binom_dist.initialise(number_of_minimizers, fpr);
+        size_t number_of_fp{1};
+        while (number_of_fp <= number_of_minimizers && binom_dist(number_of_fp) > correction_threshold)
+            ++number_of_fp;
+
+        thresholds[number_of_minimizers] += number_of_fp - 1;
+    }
+}
+
 std::vector<size_t> precompute_threshold(size_t const pattern_size,
                                          size_t const window_size,
                                          uint8_t const kmer_size,
                                          size_t const errors,
-                                         double const tau)
+                                         double const tau,
+                                         double const fpr,
+                                         double const correction_threshold,
+                                         bool const do_correction)
 {
     if (window_size == kmer_size)
         return {pattern_size + 1 > (errors + 1) * kmer_size ? pattern_size + 1 - (errors + 1) * kmer_size : 0};
@@ -586,6 +638,7 @@ std::vector<size_t> precompute_threshold(size_t const pattern_size,
 
     size_t const minimal_number_of_minimizers = std::ceil(kmers_per_pattern / static_cast<double>(kmers_per_window));
     size_t const maximal_number_of_minimizers = pattern_size - window_size + 1;
+    thresholds.reserve(minimal_number_of_minimizers + maximal_number_of_minimizers);
 
     std::vector<double> indirect_errors;
     indirect_errors = destroyed_indirectly_by_error<seqan3::dna4>(pattern_size, window_size, kmer_size);
@@ -619,28 +672,48 @@ std::vector<size_t> precompute_threshold(size_t const pattern_size,
         }
     }
     assert(thresholds.size() != 0);
+
+    thresholds.insert(thresholds.begin(), minimal_number_of_minimizers, 0);
+
+    if (do_correction)
+        apply_correction_term(thresholds, minimal_number_of_minimizers, maximal_number_of_minimizers, fpr, correction_threshold);
+
     return thresholds;
 }
 
-void do_cerealisation_out(std::vector<size_t> const & vec, search_arguments const & arguments)
+void do_cerealisation_out(std::vector<size_t> const & vec,
+                          std::filesystem::path const & ibf_file,
+                          size_t const pattern_size,
+                          size_t const window_size,
+                          size_t const kmer_size,
+                          size_t const errors,
+                          double const tau)
 {
-    std::filesystem::path filename = arguments.ibf_file.parent_path() / ("binary_p" + std::to_string(arguments.pattern_size) +
-                                                                         "_w" + std::to_string(arguments.window_size) +
-                                                                         "_k" + std::to_string(arguments.kmer_size) +
-                                                                         "_e" + std::to_string(arguments.errors) +
-                                                                         "_tau" + std::to_string(arguments.tau));
-    std::ofstream os{filename, std::ios::binary};
-    cereal::BinaryOutputArchive oarchive{os};
-    oarchive(vec);
+    {
+        std::filesystem::path filename = ibf_file.parent_path() / ("binary_p" + std::to_string(pattern_size) +
+                                                                   "_w" + std::to_string(window_size) +
+                                                                   "_k" + std::to_string(kmer_size) +
+                                                                   "_e" + std::to_string(errors) +
+                                                                   "_tau" + std::to_string(tau));
+        std::ofstream os{filename, std::ios::binary};
+        cereal::BinaryOutputArchive oarchive{os};
+        oarchive(vec);
+    }
 }
 
-bool do_cerealisation_in(std::vector<size_t> & vec, search_arguments const & arguments)
+bool do_cerealisation_in(std::vector<size_t> & vec,
+                         std::filesystem::path const & ibf_file,
+                         size_t const pattern_size,
+                         size_t const window_size,
+                         size_t const kmer_size,
+                         size_t const errors,
+                         double const tau)
 {
-    std::filesystem::path filename = arguments.ibf_file.parent_path() / ("binary_p" + std::to_string(arguments.pattern_size) +
-                                                                         "_w" + std::to_string(arguments.window_size) +
-                                                                         "_k" + std::to_string(arguments.kmer_size) +
-                                                                         "_e" + std::to_string(arguments.errors) +
-                                                                         "_tau" + std::to_string(arguments.tau));
+    std::filesystem::path filename = ibf_file.parent_path() / ("binary_p" + std::to_string(pattern_size) +
+                                                               "_w" + std::to_string(window_size) +
+                                                               "_k" + std::to_string(kmer_size) +
+                                                               "_e" + std::to_string(errors) +
+                                                               "_tau" + std::to_string(tau));
     if (!std::filesystem::exists(filename))
         return false;
 

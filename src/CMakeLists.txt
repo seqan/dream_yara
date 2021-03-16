@@ -266,11 +266,15 @@ add_executable(dream_yara_mapper  d_mapper.cpp
                                   find_verifier.h
                                   index_fm.h)
 
+add_library ("raptor_minimiser_model_lib" STATIC ../include/raptor/minimiser_model.cpp)
+target_link_libraries ("raptor_minimiser_model_lib" PUBLIC seqan3::seqan3)
+target_include_directories ("raptor_minimiser_model_lib" PUBLIC ../include)
+
 # Add dependencies found by find_package (SeqAn).
 target_link_libraries (dream_yara_indexer ${SEQAN_LIBRARIES} seqan3::seqan3)
 target_link_libraries (dream_yara_build_filter ${SEQAN_LIBRARIES} seqan3::seqan3)
 target_link_libraries (dream_yara_update_filter ${SEQAN_LIBRARIES} seqan3::seqan3)
-target_link_libraries (dream_yara_mapper ${SEQAN_LIBRARIES} seqan3::seqan3)
+target_link_libraries (dream_yara_mapper ${SEQAN_LIBRARIES} seqan3::seqan3 "raptor_minimiser_model_lib")
 
 
 # ----------------------------------------------------------------------------

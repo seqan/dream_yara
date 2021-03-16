@@ -32,6 +32,8 @@
 // Author: Enrico Seiler <enrico.seiler@fu-berlin.de>
 // ==========================================================================
 
+#pragma once
+
 #include <seqan3/core/algorithm/detail/execution_handler_parallel.hpp>
 #include <seqan3/range/views/convert.hpp>
 #include <seqan3/range/views/kmer_hash.hpp>
@@ -39,6 +41,7 @@
 #include <seqan3/search/dream_index/interleaved_bloom_filter.hpp>
 
 #include "bit_chunk.hpp"
+#include "thresholder.h"
 #include <raptor/shared.hpp>
 
 // Customise seqan::Dna5 to act like seqan3::dna4 when hashing
@@ -194,22 +197,23 @@ public:
     }
 
     // template <typename sequence_t>
-    void whichBins(std::vector<bool> & selected, sequence_t && text, uint16_t const threshold) const
+    template <typename agent_t>
+    void whichBins(std::vector<bool> & selected, sequence_t && text, Thresholder const & thresholder, agent_t & agent, std::vector<uint64_t> & values) const
     {
         if (kmer_size == window_size)
         {
             auto hash_view = seqan3::views::kmer_hash(seqan3::ungapped{kmer_size});
-
-            auto agent = ibf.counting_agent();
             auto & counts = agent.bulk_count(text | hash_view);
-            assert(ibf.bin_count() == counts.size());
-            assert(selected.size() == counts.size());
+            size_t const threshold = thresholder();
 
             for (size_t bin_index = 0; bin_index < ibf.bin_count(); ++bin_index)
             {
                 if (counts[bin_index] >= threshold)
                     selected[bin_index] = true;
             }
+
+            assert(ibf.bin_count() == counts.size());
+            assert(selected.size() == counts.size());
         }
         else
         {
@@ -217,25 +221,28 @@ public:
                                                            seqan3::window_size{window_size},
                                                            seqan3::seed{adjust_seed(kmer_size)});
 
-            auto agent = ibf.counting_agent();
-            auto & counts = agent.bulk_count(text | hash_view);
-            assert(ibf.bin_count() == counts.size());
-            assert(selected.size() == counts.size());
+            values.clear();
+            values = text | hash_view | seqan3::views::to<std::vector<uint64_t>>;
+            auto & counts = agent.bulk_count(values);
+            size_t const threshold = thresholder(values.size());
 
             for (size_t bin_index = 0; bin_index < ibf.bin_count(); ++bin_index)
             {
                 if (counts[bin_index] >= threshold)
                     selected[bin_index] = true;
             }
+
+            assert(ibf.bin_count() == counts.size());
+            assert(selected.size() == counts.size());
         }
     }
 
-    std::vector<bool> whichBins(sequence_t && text, uint16_t const threshold) const
-    {
-        std::vector<bool> selected(ibf.bin_count(), false);
-        whichBins(selected, std::forward<sequence_t>(text), threshold);
-        return selected;
-    }
+    // std::vector<bool> whichBins(sequence_t && text, Thresholder const & thresholder) const
+    // {
+    //     std::vector<bool> selected(ibf.bin_count(), false);
+    //     whichBins(selected, std::forward<sequence_t>(text), thresholder);
+    //     return selected;
+    // }
 
     size_t getNumberOfBins() const noexcept
     {
@@ -255,6 +262,11 @@ public:
     double size_mb() const
     {
         return sdsl::size_in_mega_bytes(ibf.raw_data());
+    }
+
+    auto get_agent() const
+    {
+        return ibf.counting_agent();
     }
 
     void save(const char * file_name)
