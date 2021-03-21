@@ -86,7 +86,6 @@ struct Options
     Options() :
     kmerSize(19),
     windowSize(23),
-    numberOfBins(64),
     bloomFilterSize(8589934592), // 1GB
     numberOfHashes(4),
     threadsCount(1),
