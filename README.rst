@@ -110,7 +110,7 @@ Create 64 fasta files under GENOMES_DIR/ directory with names 0-63.fasta
 
 ::
 
-  $ dream_yara_build_filter --number-of-bins 64 --threads 8 --kmer-size 18 --filter-type bloom --bloom-size 16 --num-hash 3 --output-file IBF.filter GENOMES_DIR/
+  $ dream_yara_build_filter --number-of-bins 64 --threads 8 --kmer-size 18 --filter-type bloom --bloom-size 16 --num-hash 3 --output-file IBF.filter GENOMES_DIR/*.fasta
   $ dream_yara_indexer --threads 8 --output-prefix INDICES_DIR/ GENOMES_DIR/*.fasta
 
 Distributed Mapper

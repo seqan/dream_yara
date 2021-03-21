@@ -893,7 +893,7 @@ inline void runDisMapper(Mapper<TSpec, TMainConfig> & mainMapper, DisOptions & d
         {
             disOptions.currentBinNo = i;
             Options options = mainMapper.options;
-            appendFileName(options.contigsIndexFile, disOptions.IndicesDirectory, i);
+            appendFileName(options.indexOutputDir, disOptions.IndicesDirectory, i);
             if (!openContigsLimits(options))
                 throw RuntimeError("Error while opening reference file.");
             configureMapper<TSpec, TMainConfig>(options, mainMapper, disOptions);
