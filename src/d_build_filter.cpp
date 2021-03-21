@@ -68,7 +68,7 @@ using namespace seqan;
 
 struct Options
 {
-    CharString      contigsDir;
+    std::vector<CharString> binContigFiles;
     CharString      filterFile;
 
     uint32_t        kmerSize;
@@ -114,9 +114,13 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
     addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIREFERENCE FILES DIR \\fP>");
 
-    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUT_PREFIX, "REFERENCE FILE DIR"));
-    //    setValidValues(parser, 0, SeqFileIn::getFileExtensions());
-    setHelpText(parser, 0, "A directory containing reference genome files.");
+    // addArgument(parser, ArgParseArgument(ArgParseArgument::INPUT_PREFIX, "REFERENCE FILE DIR"));
+    // //    setValidValues(parser, 0, SeqFileIn::getFileExtensions());
+    // setHelpText(parser, 0, "A directory containing reference genome files.");
+
+    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUT_FILE, "FASTA FILES", true));
+    setValidValues(parser, 0, SeqFileIn::getFileExtensions());
+    setHelpText(parser, 0, "The fasta files.");
 
     addOption(parser, ArgParseOption("v", "verbose", "Displays verbose output."));
 
@@ -126,11 +130,11 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
                                      Default: use the directory name of reference genomes.", ArgParseOption::OUTPUT_FILE));
     setValidValues(parser, "output-file", "filter");
 
-    addOption(parser, ArgParseOption("b", "number-of-bins", "The number of bins (indices) for distributed mapper",
-                                     ArgParseOption::INTEGER));
+    // addOption(parser, ArgParseOption("b", "number-of-bins", "The number of bins (indices) for distributed mapper",
+    //                                  ArgParseOption::INTEGER));
 
-    setMinValue(parser, "number-of-bins", "1");
-    setMaxValue(parser, "number-of-bins", "4194300");
+    // setMinValue(parser, "number-of-bins", "1");
+    // setMaxValue(parser, "number-of-bins", "4194300");
 
     addOption(parser, ArgParseOption("t", "threads", "Specify the number of threads to use.", ArgParseOption::INTEGER));
     setMinValue(parser, "threads", "1");
@@ -174,23 +178,32 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     // Parse verbose output option.
     getOptionValue(options.verbose, parser, "verbose");
 
-    // Parse contigs input file.
-    getArgumentValue(options.contigsDir, parser, 0);
+    // Parse contig input files.
+    uint32_t updateCount = getArgumentValueCount(parser, 0);
+    for (uint32_t i = 0; i < updateCount; ++i)
+    {
+        CharString  currentFile;
 
-    // Append trailing slash if it doesn't exist.
-    appendTrailingSlash(options.contigsDir);
+        getArgumentValue(currentFile, parser, 0, i);
+        options.binContigFiles.push_back(currentFile);
+    }
+
+    options.numberOfBins = updateCount;
+
+    // // Append trailing slash if it doesn't exist.
+    // appendTrailingSlash(options.contigsDir);
 
     // Parse contigs index prefix.
     getOptionValue(options.filterFile, parser, "output-file");
-    if (!isSet(parser, "output-file"))
-    {
-        options.filterFile = trimExtension(options.contigsDir);
-        append(options.filterFile, "bloom.filter");
-    }
+    // if (!isSet(parser, "output-file"))
+    // {
+    //     options.filterFile = trimExtension(options.contigsDir);
+    //     append(options.filterFile, "bloom.filter");
+    // }
 
     getOptionValue(options.filterType, parser, "filter-type", options.filterTypeList);
 
-    if (isSet(parser, "number-of-bins")) getOptionValue(options.numberOfBins, parser, "number-of-bins");
+    // if (isSet(parser, "number-of-bins")) getOptionValue(options.numberOfBins, parser, "number-of-bins");
     if (isSet(parser, "kmer-size")) getOptionValue(options.kmerSize, parser, "kmer-size");
     if (isSet(parser, "threads")) getOptionValue(options.threadsCount, parser, "threads");
     if (isSet(parser, "num-hash")) getOptionValue(options.numberOfHashes, parser, "num-hash");
@@ -217,7 +230,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 template <typename TFilter>
 inline void build_filter(Options & options, TFilter & filter)
 {
-    std::string comExt = commonExtension(options.contigsDir, options.numberOfBins);
+    // std::string comExt = commonExtension(options.contigsDir, options.numberOfBins);
 
     Timer<double>       timer;
     Timer<double>       globalTimer;
@@ -228,21 +241,21 @@ inline void build_filter(Options & options, TFilter & filter)
     uint32_t batchSize = options.numberOfBins/numThr;
     if(batchSize * numThr < options.numberOfBins) ++batchSize;
 
+    // std::cerr << "numThr " << numThr << '\n'
+    //           << "batchSize " << batchSize << '\n'
+    //           << "options.numberOfBins " << options.numberOfBins << '\n';
+
     std::vector<std::future<void>> tasks;
 
     for (uint32_t taskNo = 0; taskNo < numThr; ++taskNo)
     {
-        tasks.emplace_back(std::async([=, &filter] {
+        tasks.emplace_back(std::async([&, taskNo] () {
             for (uint32_t binNo = taskNo*batchSize; binNo < options.numberOfBins && binNo < (taskNo +1) * batchSize; ++binNo)
             {
                 Timer<double>       binTimer;
                 start (binTimer);
 
-                CharString fastaFile;
-                appendFileName(fastaFile, options.contigsDir, binNo);
-                append(fastaFile, comExt);
-
-                filter.addFastaFile(fastaFile, binNo);
+                filter.addFastaFile(options.binContigFiles[binNo], binNo);
 
                 stop(binTimer);
                 if (options.verbose)
