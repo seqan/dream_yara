@@ -299,7 +299,7 @@ bool saveContigsLimits(TOptions const & options)
     appendValue(limits, options.contigsSize);
     appendValue(limits, options.contigsSum);
 
-    CharString contigsLimitFile(options.contigsIndexFile);
+    CharString contigsLimitFile(options.indexOutputDir);
     append(contigsLimitFile, ".txt.size");
 
     return save(limits, toCString(contigsLimitFile));
@@ -314,7 +314,7 @@ bool openContigsLimits(TOptions & options)
 {
     String<uint64_t> limits;
 
-    CharString contigsLimitFile(options.contigsIndexFile);
+    CharString contigsLimitFile(options.indexOutputDir);
     append(contigsLimitFile, ".txt.size");
 
     if (!open(limits, toCString(contigsLimitFile), OPEN_RDONLY))

@@ -56,7 +56,7 @@ struct Options
     uint64_t            contigsMaxLength;
     uint64_t            contigsSum;
 
-    CharString          contigsIndexFile;
+    CharString          indexOutputDir;
     Pair<CharString>    readsFile;
     CharString          outputFile;
     TOutputFormat       outputFormat;
@@ -364,7 +364,7 @@ inline void loadContigs(Mapper<TSpec, TConfig> & me)
     start(me.timer);
     try
     {
-        if (!open(me.contigs, toCString(me.options.contigsIndexFile), OPEN_RDONLY))
+        if (!open(me.contigs, toCString(me.options.indexOutputDir), OPEN_RDONLY))
             throw RuntimeError("Error while opening reference file.");
     }
     catch (BadAlloc const & /* e */)
@@ -388,7 +388,7 @@ inline void loadContigsIndex(Mapper<TSpec, TConfig> & me)
     start(me.timer);
     try
     {
-        if (!open(me.index, toCString(me.options.contigsIndexFile), OPEN_RDONLY))
+        if (!open(me.index, toCString(me.options.indexOutputDir), OPEN_RDONLY))
             throw RuntimeError("Error while opening reference index file.");
     }
     catch (BadAlloc const & /* e */)

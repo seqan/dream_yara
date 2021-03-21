@@ -448,7 +448,7 @@ void configureDisMapper(DisOptions & disOptions,
     {
         disOptions.contigOffsets[i] = disOptions.contigsSize;
         Options options = disOptions;
-        appendFileName(options.contigsIndexFile, disOptions.IndicesDirectory, i);
+        appendFileName(options.indexOutputDir, disOptions.IndicesDirectory, i);
         if (!openContigsLimits(options))
             throw RuntimeError("Error while opening contig limits file.");
 

@@ -72,8 +72,8 @@ using namespace seqan;
 
 struct Options
 {
-    std::map<uint32_t, CharString>  binContigFiles;
-    CharString      contigsIndexFile;
+    std::vector<CharString> binContigFiles;
+    CharString      indexOutputDir;
 
     uint32_t        numberOfBins;
     uint32_t        currentBinNo;
@@ -160,7 +160,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
     addOption(parser, ArgParseOption("t", "threads", "Specify the number of threads to use (valid for bloom filter only).", ArgParseOption::INTEGER));
     setMinValue(parser, "threads", "1");
-    setMaxValue(parser, "threads", "32");
+    // setMaxValue(parser, "threads", "32");
     setDefaultValue(parser, "threads", options.threadsCount);
 
 
@@ -187,32 +187,30 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 
     // std::map<uint32_t, CharString>  binContigs;
     // Parse contig input files.
+    // Parse verbose output option.
+    getOptionValue(options.verbose, parser, "verbose");
+
+    // Parse contig input files.
     uint32_t updateCount = getArgumentValueCount(parser, 0);
     for (uint32_t i = 0; i < updateCount; ++i)
     {
         CharString  currentFile;
-        uint32_t    currentBinNo;
 
         getArgumentValue(currentFile, parser, 0, i);
-
-        if (getBinNoFromFile(currentBinNo, currentFile))
-            options.binContigFiles[currentBinNo] = currentFile;
-        else
-        {
-            std::cerr << "File: " << currentFile << "\ndoesn't have a valid name\n";
-            exit(1);
-        }
+        options.binContigFiles.push_back(currentFile);
     }
 
+    options.numberOfBins = updateCount;
+
     // Parse contigs index prefix.
-    getOptionValue(options.contigsIndexFile, parser, "output-prefix");
+    getOptionValue(options.indexOutputDir, parser, "output-prefix");
 
     // Parse and set temp dir.
     CharString tmpDir;
     getOptionValue(tmpDir, parser, "tmp-dir");
     if (!isSet(parser, "tmp-dir"))
     {
-        tmpDir = getPath(options.contigsIndexFile);
+        tmpDir = getPath(options.indexOutputDir);
         if (empty(tmpDir))
             getCwd(tmpDir);
     }
@@ -267,7 +265,7 @@ void saveContigs(YaraIndexer<TSpec, TConfig> & me)
         mtx.unlock();
     }
 
-    if (!saveContigsLimits(me.options) || !save(me.contigs, toCString(me.options.contigsIndexFile)))
+    if (!saveContigsLimits(me.options) || !save(me.contigs, toCString(me.options.indexOutputDir)))
         throw RuntimeError("Error while saving the reference.");
 }
 
@@ -328,7 +326,7 @@ void saveIndex(YaraIndexer<TSpec, TConfig> & me)
         std::cerr << "[bin " << me.options.currentBinNo << "] Saving reference index:\t\t\t" << std::endl;
         mtx.unlock();
     }
-    if (!save(index, toCString(me.options.contigsIndexFile)))
+    if (!save(index, toCString(me.options.indexOutputDir)))
         throw RuntimeError("Error while saving the reference index file.");
 }
 
@@ -411,7 +409,7 @@ int main(int argc, char const ** argv)
         return res == ArgumentParser::PARSE_ERROR;
 
 //    std::string comExt = commonExtension(options.contigsDir, options.numberOfBins);
-    typedef std::map<uint32_t,CharString>::iterator mapIter;
+    // typedef std::map<uint32_t,CharString>::iterator mapIter;
 
     try
     {
@@ -426,18 +424,18 @@ int main(int argc, char const ** argv)
 
         // add the new kmers from the new files
         //iterate over the maps
-        for(mapIter iter = options.binContigFiles.begin(); iter != options.binContigFiles.end(); ++iter)
+        for(size_t bin_index = 0; bin_index <  options.numberOfBins; ++bin_index)
         {
-            tasks.emplace_back(std::async([=, &thread_limiter] {
+            tasks.emplace_back(std::async([&, bin_index] {
                 Critical_section _(thread_limiter);
 
                 Timer<double>       binTimer;
                 start (binTimer);
 
                 Options binOptions = options;
-                appendFileName(binOptions.contigsIndexFile, options.contigsIndexFile, iter->first);
+                appendFileName(binOptions.indexOutputDir, options.indexOutputDir, bin_index);
 
-                binOptions.currentBinNo = iter->first;
+                binOptions.currentBinNo = bin_index;
 
                 runYaraIndexer(binOptions);
 
@@ -446,7 +444,7 @@ int main(int argc, char const ** argv)
                 if (options.verbose)
                 {
                     mtx.lock();
-                    std::cerr <<"[bin " << iter->first << "] Done indexing reference\t\t\t" << binTimer << std::endl;
+                    std::cerr <<"[bin " << bin_index << "] Done indexing reference\t\t\t" << binTimer << std::endl;
                     mtx.unlock();
                 }
 
