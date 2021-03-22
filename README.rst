@@ -123,7 +123,7 @@ Map single-end DNA reads on the indexed reference genome by executing:
 
 ::
 
-  $ dream_yara_mapper -t 8 -ft bloom -e 3 -fi IBF.filter -o READS.bam INDICES_DIR/ READS.fastq.gz
+  $ dream_yara_mapper -t 8 -ft bloom -e 0.03 -fi IBF.filter -o READS.bam INDICES_DIR/ READS.fastq.gz
 
 Paired-end reads
 ^^^^^^^^^^^^^^^^
@@ -132,7 +132,7 @@ Map paired-end reads by providing two DNA read files:
 
 ::
 
-  $ dream_yara_mapper -t 8 -ft bloom -e 3 -fi IBF.filter -o READS.bam INDICES_DIR/ READS_1.fastq.gz READS2.fastq.gz
+  $ dream_yara_mapper -t 8 -ft bloom -e 0.03 -fi IBF.filter -o READS.bam INDICES_DIR/ READS_1.fastq.gz READS2.fastq.gz
 
 
 Output format

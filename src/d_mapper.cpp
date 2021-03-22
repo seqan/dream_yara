@@ -179,13 +179,14 @@ void setupArgumentParser(ArgumentParser & parser, DisOptions const & disOptions)
     // Setup mapping disOptions.
     addSection(parser, "Mapping Options");
 
-    addOption(parser, ArgParseOption("e", "error-rate", "Consider alignments within this percentual number of errors. \
+    addOption(parser, ArgParseOption("e", "error-rate", "Consider alignments within this ABSOLUTE number of errors. \
                                      Increase this threshold to increase the number of mapped reads. \
                                      Decrease this threshold to decrease the runtime.",
-                                     ArgParseOption::INTEGER));
+                                     ArgParseOption::DOUBLE));
     setMinValue(parser, "error-rate", "0");
-    setMaxValue(parser, "error-rate", "10");
-    setDefaultValue(parser, "error-rate", 100.0 * disOptions.errorRate);
+    setMaxValue(parser, "error-rate", "1");
+    setDefaultValue(parser, "error-rate", disOptions.errorRate);
+
 
     addOption(parser, ArgParseOption("s", "strata-rate", "Consider suboptimal alignments within this percentual number \
                                      of errors from the optimal alignment. Increase this threshold to increase \
@@ -337,9 +338,11 @@ parseCommandLine(DisOptions & disOptions, ArgumentParser & parser, int argc, cha
     if (isSet(parser, "skip-sam-headers")) disOptions.skipSamHeader = true;
 
     // Parse mapping disOptions.
-    unsigned errorRate;
-    if (getOptionValue(errorRate, parser, "error-rate"))
-        disOptions.errorRate = errorRate / 100.0;
+    // unsigned errorRate;
+    // if (getOptionValue(errorRate, parser, "error-rate"))
+    //     disOptions.errorRate = errorRate / 100.0;
+
+    getOptionValue(disOptions.errorRate, parser, "error-rate");
 
     unsigned strataRate;
     if (getOptionValue(strataRate, parser, "strata-rate"))
