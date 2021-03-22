@@ -179,7 +179,7 @@ void setupArgumentParser(ArgumentParser & parser, DisOptions const & disOptions)
     // Setup mapping disOptions.
     addSection(parser, "Mapping Options");
 
-    addOption(parser, ArgParseOption("e", "error-rate", "Consider alignments within this relative number of errors. \
+    addOption(parser, ArgParseOption("e", "error-rate", "Consider alignments within this ABSOLUTE number of errors. \
                                      Increase this threshold to increase the number of mapped reads. \
                                      Decrease this threshold to decrease the runtime.",
                                      ArgParseOption::DOUBLE));
