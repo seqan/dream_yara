@@ -110,7 +110,7 @@ Create 64 fasta files under GENOMES_DIR/ directory with names 0-63.fasta
 
 ::
 
-  $ dream_yara_build_filter --number-of-bins 64 --threads 8 --kmer-size 18 --filter-type bloom --bloom-size 16 --num-hash 3 --output-file IBF.filter GENOMES_DIR/{00..63}.fasta
+  $ dream_yara_build_filter --threads 8 --kmer-size 18 --filter-type bloom --bloom-size 16 --num-hash 3 --output-file IBF.filter GENOMES_DIR/*.fasta
   $ dream_yara_indexer --threads 8 --output-prefix INDICES_DIR/ GENOMES_DIR/*.fasta
 
 Distributed Mapper
@@ -123,7 +123,7 @@ Map single-end DNA reads on the indexed reference genome by executing:
 
 ::
 
-  $ dream_yara_mapper -t 8 -ft bloom -e 3 -fi IBF.filter -o READS.bam INDICES_DIR/ READS.fastq.gz
+  $ dream_yara_mapper -t 8 -ft bloom -e 0.03 -fi IBF.filter -o READS.bam INDICES_DIR/ READS.fastq.gz
 
 Paired-end reads
 ^^^^^^^^^^^^^^^^
@@ -132,7 +132,7 @@ Map paired-end reads by providing two DNA read files:
 
 ::
 
-  $ dream_yara_mapper -t 8 -ft bloom -e 3 -fi IBF.filter -o READS.bam INDICES_DIR/ READS_1.fastq.gz READS2.fastq.gz
+  $ dream_yara_mapper -t 8 -ft bloom -e 0.03 -fi IBF.filter -o READS.bam INDICES_DIR/ READS_1.fastq.gz READS2.fastq.gz
 
 
 Output format
