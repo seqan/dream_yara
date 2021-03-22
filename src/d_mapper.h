@@ -71,6 +71,7 @@ public:
     uint64_t                filteredReads = 0;
     std::vector<uint32_t>   contigOffsets;
 
+    // this stores for each bin the read ids that the ibf says we should look at
     std::vector<std::vector<uint32_t>>          origReadIdMap;
     std::map<uint32_t, String<CigarElement<>>>  collectedCigars;
 
@@ -357,7 +358,7 @@ inline void clasifyLoadedReads(Mapper<TSpec, TMainConfig>  & mainMapper, DisOpti
 
     for (uint32_t taskNo = 0; taskNo < numThr; ++taskNo)
     {
-        tasks.emplace_back(std::async([=, &mainMapper, &disOptions] {
+        tasks.emplace_back(std::async([&, taskNo] {
             std::vector<uint64_t> values;
             std::vector<bool> selectedBins(disOptions.numberOfBins, false);
             auto agent = disOptions.filter.get_agent();
@@ -863,6 +864,7 @@ std::vector<uint32_t> sortedBins(DisOptions const & disOptions)
     iota(sortedBinIndex.begin(), sortedBinIndex.end(), 0);
 
     // sort indexes based on comparing values in v
+    // Sort bins based on the number of reads that need to be processed for each bin
     std::sort(sortedBinIndex.begin(), sortedBinIndex.end(),
          [&disOptions](size_t i1, size_t i2) {return disOptions.origReadIdMap[i1].size() > disOptions.origReadIdMap[i2].size();});
 
@@ -889,6 +891,8 @@ inline void runDisMapper(Mapper<TSpec, TMainConfig> & mainMapper, DisOptions & d
 
         prepairMainMapper(mainMapper, disOptions);
 
+        // sortedBins returns a list of bin IDs that are sorted descending by the number of reads that need to be
+        // processed for a bin
         for (auto i: sortedBins(disOptions))
         {
             disOptions.currentBinNo = i;
