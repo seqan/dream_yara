@@ -179,7 +179,7 @@ inline void bucket(StringSet<THost, Segment<TSpec> > & me, TKeyGetter const & ke
     resize(stringSetLimits(me), maxKey + 1, 0, Exact());
 
     // Count the number of keys present in the host string.
-    forEach(host(me), TCounter(stringSetLimits(me), nextKey), tag);
+    forEach(host(me), TCounter(stringSetLimits(me), nextKey), Serial());
 
     // Limits are the cumulated key counts.
     partialSum(stringSetLimits(me), tag);
