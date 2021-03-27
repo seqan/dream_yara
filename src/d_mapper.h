@@ -306,12 +306,15 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, Mapper<TSpec, TMainConfig
         clearSeeds(me);
     }
     aggregateMatches(me, readSeqs);
-    rankMatches(me, me.reads.seqs);
-    if (me.options.verifyMatches)
-        verifyMatches(me);
-    alignMatches(me);
-    copyMatches(mainMapper, me, disOptions);
-    copyCigars(mainMapper, me, disOptions);
+    if (!empty(me.matchesSetByCoord))
+    {
+        rankMatches(me, me.reads.seqs);
+        if (me.options.verifyMatches)
+            verifyMatches(me);
+        alignMatches(me);
+        copyMatches(mainMapper, me, disOptions);
+        copyCigars(mainMapper, me, disOptions);
+    }
     appendStats(mainMapper, me);
 }
 
