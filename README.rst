@@ -46,11 +46,11 @@ The following instructions assume Linux or OS X. For more information, including
 Software requirements
 ~~~~~~~~~~~~~~~~~~~~~
 
-**A modern C++11 compiler with OpenMP 3.0 extensions is required to build Yara. If unsure, use GNU G++ 4.9 or newer.**
+**A modern C++20 compiler with OpenMP 3.0 extensions is required to build Yara. If unsure, use GNU G++ 7 or newer.**
 
 * Git.
-* CMake 3.2 or newer.
-* G++ 4.9 or newer.
+* CMake 3.4 or newer.
+* G++ 7 or newer.
 
 Download
 ~~~~~~~~
