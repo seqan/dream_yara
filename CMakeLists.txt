@@ -76,7 +76,7 @@ else ()
     set (_VALGRIND_FLAG)
 endif ()
 
-find_package (PythonInterp 2)
+find_package (PythonInterp 3)
 if (PYTHONINTERP_FOUND)
   add_test (NAME app_test_dream_yara
             COMMAND ${PYTHON_EXECUTABLE}
