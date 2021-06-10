@@ -6,6 +6,8 @@
 # CMakeLists.txt file for dream_yara
 # ===========================================================================
 
+cmake_minimum_required (VERSION 3.8)
+
 # ----------------------------------------------------------------------------
 # App version
 # ----------------------------------------------------------------------------
@@ -123,7 +125,7 @@ message(   "     SEQAN      ${SEQAN_FOUND}      ${SEQAN_VERSION_STRING}")
 message(STATUS "The requirements were met.")
 
 
-message ("\n${ColourBold}Build configuration${ColourReset}")
+message ("\n${FontBold}Build configuration${FontReset}")
 
 message (STATUS "DREAM-YARA version is: ${SEQAN_APP_VERSION}")
 
