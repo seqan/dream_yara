@@ -43,23 +43,23 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 # ----------------------------------------------------------------------------
 message ("\n${FontBold}Dependency detection${FontReset}")
 
-if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/seqan/include/seqan/version.h")
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/seqan/include/seqan/version.h")
     set (CMAKE_INCLUDE_PATH
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/seqan/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/seqan/include
         ${CMAKE_INCLUDE_PATH})
     set (CMAKE_PREFIX_PATH
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/seqan/util/cmake
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/seqan/util/cmake
         ${CMAKE_PREFIX_PATH})
     set (CMAKE_MODULE_PATH
-       ${CMAKE_CURRENT_SOURCE_DIR}/include/seqan/util/cmake
+       ${CMAKE_CURRENT_SOURCE_DIR}/lib/seqan/util/cmake
        ${CMAKE_MODULE_PATH})
     message (STATUS "Found a local SeqAn library provided with the ${CMAKE_PROJECT_NAME} source code.")
     message (    "   This will be preferred over system global headers.")
 endif ()
 
-if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/include/sdsl-lite/include/sdsl/bits.hpp")
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/sdsl-lite/include/sdsl/bits.hpp")
     set (SDSL_INCLUDE_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/sdsl-lite/include)
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/sdsl-lite/include)
     message (STATUS "Found a local SDSL library provided with the ${CMAKE_PROJECT_NAME} source code.")
 endif ()
 

@@ -18,7 +18,7 @@ import os
 
 # Automagically add util/py_lib to PYTHONPATH environment variable.
 path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
-                                    'include', 'seqan', 'util', 'py_lib'))
+                                    'lib', 'seqan', 'util', 'py_lib'))
 sys.path.insert(0, path)
 
 
