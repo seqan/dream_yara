@@ -280,6 +280,12 @@ target_link_libraries (dream_yara_build_filter ${SEQAN_LIBRARIES})
 target_link_libraries (dream_yara_update_filter ${SEQAN_LIBRARIES})
 target_link_libraries (dream_yara_mapper ${SEQAN_LIBRARIES})
 
+add_custom_target ("${PROJECT_NAME}")
+
+add_dependencies ("${PROJECT_NAME}" dream_yara_indexer)
+add_dependencies ("${PROJECT_NAME}" dream_yara_build_filter)
+add_dependencies ("${PROJECT_NAME}" dream_yara_update_filter)
+add_dependencies ("${PROJECT_NAME}" dream_yara_mapper)
 
 # ----------------------------------------------------------------------------
 # Installation

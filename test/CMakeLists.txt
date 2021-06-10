@@ -29,6 +29,7 @@ set_directory_properties (PROPERTIES TEST_INCLUDE_FILE "${CMAKE_CURRENT_BINARY_D
 # Define the test targets. All depending targets are built just before the test execution.
 add_custom_target (api_test)
 add_custom_target (cli_test)
+add_dependencies (cli_test "${PROJECT_NAME}")
 
 # Test executables and libraries should not mix with the application files.
 unset (CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
