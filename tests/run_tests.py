@@ -103,7 +103,7 @@ def main(source_base, binary_base):
 
         conf = app_tests.TestConf(
             program=path_to_dream_indexer,
-            args=['-o', outFileDir] + InfileNames,
+            args=['--verbose', '-o', outFileDir] + InfileNames,
             to_diff=[(ph.inFile('gold/%s-binned-indices/%s' % (organism, fileName)),
                      ph.outFile(outFileDir+ fileName), 'md5') for fileName in fileNames])
         conf_list.append(conf)
@@ -117,7 +117,7 @@ def main(source_base, binary_base):
     for organism in ['64-viral']:
         conf = app_tests.TestConf(
             program=path_to_ibf_filter,
-            args=['-o', ph.outFile('%s-binned-genomes.filter' % organism)] + ibf_args + InfileNames)
+            args=['--verbose', '-o', ph.outFile('%s-binned-genomes.filter' % organism)] + ibf_args + InfileNames)
         conf_list.append(conf)
 
 
@@ -138,7 +138,8 @@ def main(source_base, binary_base):
 
             basic = app_tests.TestConf(
                 program=path_to_dream_mapper,
-                args=[ph.inFile('gold/%s-binned-indices/' % organism),
+                args=['--verbose',
+                      ph.inFile('gold/%s-binned-indices/' % organism),
                       ph.inFile('input/%s-reads.fa' % organism),
                       '-fi', ph.outFile('%s-binned-genomes.filter' % organism),
                       '-o', ph.outFile('%s-reads.%s.sam' % (organism, dis_mapper_suffix[i]))] +
