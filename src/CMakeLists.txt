@@ -15,7 +15,7 @@ cmake_minimum_required (VERSION 3.8)
 # change this after every release
 set (SEQAN_APP_VERSION_MAJOR "1")
 set (SEQAN_APP_VERSION_MINOR "0")
-set (SEQAN_APP_VERSION_PATCH "0")
+set (SEQAN_APP_VERSION_PATCH "2")
 
 # don't change the following
 set (SEQAN_APP_VERSION "${SEQAN_APP_VERSION_MAJOR}.${SEQAN_APP_VERSION_MINOR}.${SEQAN_APP_VERSION_PATCH}")
@@ -166,8 +166,6 @@ endif ()
 # ----------------------------------------------------------------------------
 # App-Level Configuration
 # ----------------------------------------------------------------------------
-
-set (SEQAN_APP_VERSION "1.0.2")
 
 option (DR_YARA_LARGE_CONTIGS "Set to OFF to disable support for more than 32k contigs or contigs longer than 4Gbp." ON)
 if (DR_YARA_LARGE_CONTIGS AND NOT SEQAN_TRAVIS_BUILD)
