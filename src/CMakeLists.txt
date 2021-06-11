@@ -39,6 +39,10 @@ find_package(BZip2  QUIET)
 # ----------------------------------------------------------------------------
 # App-Level Configuration
 # ----------------------------------------------------------------------------
+if (DEFINED ENV{CI})
+    option (DR_YARA_NATIVE_BUILD "Architecture-specific optimizations (disable on CI)" OFF)
+endif ()
+
 option (DR_YARA_NATIVE_BUILD "Architecture-specific optimizations, i.e. g++ -march=native."                      ON)
 option (DR_YARA_STATIC_BUILD "Include all libraries in the binaries."                                            OFF)
 
