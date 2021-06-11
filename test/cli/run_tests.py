@@ -17,7 +17,7 @@ import os
 
 
 # Automagically add util/py_lib to PYTHONPATH environment variable.
-path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
+path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..',
                                     'lib', 'seqan', 'util', 'py_lib'))
 sys.path.insert(0, path)
 
@@ -47,7 +47,7 @@ def main(source_base, binary_base):
 
     ph = app_tests.TestPathHelper(
         source_base, binary_base,
-        'tests')  # tests dir
+        'test')  # tests dir
 
     # ============================================================
     # Auto-detect the binary path.
@@ -82,7 +82,7 @@ def main(source_base, binary_base):
         if not os.path.exists(tempFastaDir):
             os.makedirs(tempFastaDir)
         binFastaLen = 101 # each fasta entry is 100 lines long (101 including the header)
-        inputFasta = open(ph.inFile('input/%s-genomes.fa' % organism), 'r').read().split('\n')
+        inputFasta = open(ph.inFile('data/input/%s-genomes.fa' % organism), 'r').read().split('\n')
         for b in range(64):
             # First, get the slice
             binFasta = inputFasta[b*binFastaLen:(b+1)*binFastaLen]
@@ -93,9 +93,9 @@ def main(source_base, binary_base):
 
         # Get file extensions for the fm index files
         exts = [os.path.basename(fname).split('.', 1)[-1]
-                for fname in glob.glob(ph.inFile('gold/%s-genomes.*' % organism))]
+                for fname in glob.glob(ph.inFile('data/gold/%s-genomes.*' % organism))]
 
-        outFileDir = ph.outFile('input/%s-binned-indices/' % organism)
+        outFileDir = ph.outFile('data/input/%s-binned-indices/' % organism)
         InfileNames = [tempFastaDir + str(b) + '.fa' for b in range(64)]
         fileNames = [str(b)+'.'+e for b in range(64) for e in exts]
         if not os.path.exists(outFileDir):
@@ -104,7 +104,7 @@ def main(source_base, binary_base):
         conf = app_tests.TestConf(
             program=path_to_dream_indexer,
             args=['--verbose', '-o', outFileDir] + InfileNames,
-            to_diff=[(ph.inFile('gold/%s-binned-indices/%s' % (organism, fileName)),
+            to_diff=[(ph.inFile('data/gold/%s-binned-indices/%s' % (organism, fileName)),
                      ph.outFile(outFileDir+ fileName), 'md5') for fileName in fileNames])
         conf_list.append(conf)
 
@@ -139,12 +139,12 @@ def main(source_base, binary_base):
             basic = app_tests.TestConf(
                 program=path_to_dream_mapper,
                 args=['--verbose',
-                      ph.inFile('gold/%s-binned-indices/' % organism),
-                      ph.inFile('input/%s-reads.fa' % organism),
+                      ph.inFile('data/gold/%s-binned-indices/' % organism),
+                      ph.inFile('data/input/%s-reads.fa' % organism),
                       '-fi', ph.outFile('%s-binned-genomes.filter' % organism),
                       '-o', ph.outFile('%s-reads.%s.sam' % (organism, dis_mapper_suffix[i]))] +
                       dis_mapper_args[i],
-                to_diff=[(ph.inFile('gold/%s-reads.%s.sam' % (organism, dis_mapper_suffix[i])),
+                to_diff=[(ph.inFile('data/gold/%s-reads.%s.sam' % (organism, dis_mapper_suffix[i])),
                           ph.outFile('%s-reads.%s.sam' % (organism, dis_mapper_suffix[i])),
                           sam_transforms)])
             conf_list.append(basic)

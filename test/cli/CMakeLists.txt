@@ -11,7 +11,7 @@ find_package (PythonInterp 3)
 if (PYTHONINTERP_FOUND)
   add_test (NAME app_test_dream_yara
             COMMAND ${PYTHON_EXECUTABLE}
-                    ${CMAKE_SOURCE_DIR}/tests/run_tests.py
+                    ${CMAKE_SOURCE_DIR}/test/cli/run_tests.py
                     ${_VALGRIND_FLAG}
                     ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 endif ()
