@@ -6,6 +6,8 @@
 # CMakeLists.txt file for dream_yara
 # ===========================================================================
 
+cmake_minimum_required (VERSION 3.8)
+
 # ----------------------------------------------------------------------------
 # App version
 # ----------------------------------------------------------------------------
@@ -13,7 +15,7 @@
 # change this after every release
 set (SEQAN_APP_VERSION_MAJOR "1")
 set (SEQAN_APP_VERSION_MINOR "0")
-set (SEQAN_APP_VERSION_PATCH "0")
+set (SEQAN_APP_VERSION_PATCH "2")
 
 # don't change the following
 set (SEQAN_APP_VERSION "${SEQAN_APP_VERSION_MAJOR}.${SEQAN_APP_VERSION_MINOR}.${SEQAN_APP_VERSION_PATCH}")
@@ -37,6 +39,10 @@ find_package(BZip2  QUIET)
 # ----------------------------------------------------------------------------
 # App-Level Configuration
 # ----------------------------------------------------------------------------
+if (DEFINED ENV{CI})
+    option (DR_YARA_NATIVE_BUILD "Architecture-specific optimizations (disable on CI)" OFF)
+endif ()
+
 option (DR_YARA_NATIVE_BUILD "Architecture-specific optimizations, i.e. g++ -march=native."                      ON)
 option (DR_YARA_STATIC_BUILD "Include all libraries in the binaries."                                            OFF)
 
@@ -123,7 +129,7 @@ message(   "     SEQAN      ${SEQAN_FOUND}      ${SEQAN_VERSION_STRING}")
 message(STATUS "The requirements were met.")
 
 
-message ("\n${ColourBold}Build configuration${ColourReset}")
+message ("\n${FontBold}Build configuration${FontReset}")
 
 message (STATUS "DREAM-YARA version is: ${SEQAN_APP_VERSION}")
 
@@ -164,8 +170,6 @@ endif ()
 # ----------------------------------------------------------------------------
 # App-Level Configuration
 # ----------------------------------------------------------------------------
-
-set (SEQAN_APP_VERSION "1.0.2")
 
 option (DR_YARA_LARGE_CONTIGS "Set to OFF to disable support for more than 32k contigs or contigs longer than 4Gbp." ON)
 if (DR_YARA_LARGE_CONTIGS AND NOT SEQAN_TRAVIS_BUILD)
@@ -278,6 +282,12 @@ target_link_libraries (dream_yara_build_filter ${SEQAN_LIBRARIES})
 target_link_libraries (dream_yara_update_filter ${SEQAN_LIBRARIES})
 target_link_libraries (dream_yara_mapper ${SEQAN_LIBRARIES})
 
+add_custom_target ("${PROJECT_NAME}")
+
+add_dependencies ("${PROJECT_NAME}" dream_yara_indexer)
+add_dependencies ("${PROJECT_NAME}" dream_yara_build_filter)
+add_dependencies ("${PROJECT_NAME}" dream_yara_update_filter)
+add_dependencies ("${PROJECT_NAME}" dream_yara_mapper)
 
 # ----------------------------------------------------------------------------
 # Installation
